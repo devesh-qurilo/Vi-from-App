@@ -1,0 +1,782 @@
+import { moderateScale, normalizeFont, scale } from "@/app/Responsive";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import { useRouter } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  Image,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+} from "react-native";
+import ProductModal from "../../components/vendors/ProductEditModel";
+
+const API_BASE = "https://w7xqb95q-5000.inc1.devtunnels.ms";
+const { width } = Dimensions.get("window");
+const PLACEHOLDER_IMAGE =
+  "https://via.placeholder.com/300x300.png?text=No+Image";
+
+const MyRecentListing = () => {
+  const [listingsData, setListingsData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+
+  const [isStockDropdownOpen, setIsStockDropdownOpen] = useState(false);
+  const [stockDropdownPosition, setStockDropdownPosition] = useState({
+    x: 0,
+    y: 0,
+  });
+  const [currentProductId, setCurrentProductId] = useState(null);
+  const [updatingStock, setUpdatingStock] = useState(false);
+  const stockButtonRefs = useRef({});
+  const router = useRouter();
+
+  const fetchProducts = async () => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      if (!token) {
+        Alert.alert("Error", "User not logged in!");
+        setLoading(false);
+        return;
+      }
+
+      const res = await axios.get(`${API_BASE}/api/vendor/recent-products`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res?.data?.success && Array.isArray(res.data.products)) {
+        const formatted = res.data.products.map((product, idx) => {
+          const rawId = product.id ?? `${product.name ?? "product"}-${idx}`;
+          return {
+            id: String(rawId),
+            name: product.name ?? "Untitled product",
+            price: product.price ?? 0,
+            unit: product.unit ?? "",
+            weightPerPiece: product.weightPerPiece ?? "",
+            quantity: product.quantity ?? 0,
+            uploadedOn: product.datePosted
+              ? new Date(product.datePosted).toLocaleDateString()
+              : "",
+            image:
+              product.images && product.images.length && product.images[0]
+                ? product.images[0]
+                : "",
+            status: product.status ?? "In Stock",
+          };
+        });
+
+        // Deduplicate by id (last occurrence wins)
+        const map = new Map();
+        formatted.forEach((p) => map.set(p.id, p));
+        const uniqueList = Array.from(map.values());
+        setListingsData(uniqueList);
+      } else {
+        Alert.alert("Error", "Could not fetch recent products");
+      }
+    } catch (error) {
+      console.log("API Error:", error);
+      Alert.alert("Error", "Something went wrong while fetching products");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  // Refresh when modal closes
+  useEffect(() => {
+    if (!modalVisible) fetchProducts();
+  }, [modalVisible]);
+
+  // Modal handlers
+  const openModal = (product) => {
+    setSelectedProduct(product);
+    setModalVisible(true);
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+    setSelectedProduct(null);
+  };
+
+  const submitModal = (updatedProduct) => {
+    setListingsData((prev) =>
+      prev.map((item) =>
+        item.id === updatedProduct.id ? updatedProduct : item,
+      ),
+    );
+    closeModal();
+  };
+
+  const viewAll = () => router.push("/MyRecentlyAllProduct");
+
+  const handleOpenProduct = (id) => {
+    if (!id) {
+      Alert.alert("Error", "Product id missing");
+      return;
+    }
+    router.push(`/VendorViewProduct?productId=${encodeURIComponent(id)}`);
+  };
+
+  // Stock Dropdown Handler (keeps your measureInWindow approach)
+  const openStockDropdown = (productId) => {
+    const ref = stockButtonRefs.current[productId];
+
+    if (ref && typeof ref.measureInWindow === "function") {
+      ref.measureInWindow((x, y, w, h) => {
+        setStockDropdownPosition({
+          x: Math.max(8, x - 60),
+          y: y + h + 5,
+        });
+        setCurrentProductId(productId);
+        setIsStockDropdownOpen(true);
+      });
+    } else {
+      setStockDropdownPosition({ x: width / 2 - 80, y: 200 });
+      setCurrentProductId(productId);
+      setIsStockDropdownOpen(true);
+    }
+  };
+
+  const handleStockChange = async (newStatus) => {
+    if (!currentProductId) {
+      Alert.alert("Error", "No product selected");
+      return;
+    }
+    setIsStockDropdownOpen(false);
+    setUpdatingStock(true);
+
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      if (!token) {
+        Alert.alert("Error", "User not logged in!");
+        setUpdatingStock(false);
+        setCurrentProductId(null);
+        return;
+      }
+
+      let response = null;
+      let lastError = null;
+
+      try {
+        response = await axios.patch(
+          `${API_BASE}/api/vendor/products/${currentProductId}/status`,
+          { status: newStatus },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            timeout: 10000,
+          },
+        );
+      } catch (err) {
+        lastError = err;
+        try {
+          response = await axios.patch(
+            `${API_BASE}/api/vendor/products/${currentProductId}`,
+            { status: newStatus },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              timeout: 10000,
+            },
+          );
+        } catch (err2) {
+          lastError = err2;
+          try {
+            response = await axios.put(
+              `${API_BASE}/api/vendor/products/${currentProductId}`,
+              { status: newStatus },
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                timeout: 10000,
+              },
+            );
+          } catch (err3) {
+            lastError = err3;
+          }
+        }
+      }
+
+      if (response && response.data && response.data.success) {
+        setListingsData((prev) =>
+          prev.map((item) =>
+            item.id === currentProductId
+              ? { ...item, status: newStatus }
+              : item,
+          ),
+        );
+        Alert.alert("Success", `Product marked as ${newStatus}`);
+      } else {
+        throw lastError || new Error("Failed to update status");
+      }
+    } catch (error) {
+      console.log("Stock update error:", error);
+      if (error.response?.status === 404) {
+        Alert.alert("Error", "API endpoint not found. Please check server.");
+      } else if (error.response?.status === 401) {
+        Alert.alert("Error", "Authentication failed. Please login again.");
+      } else if (error.response?.status === 403) {
+        Alert.alert(
+          "Error",
+          "You don't have permission to update this product.",
+        );
+      } else if (error.response?.status === 500) {
+        Alert.alert(
+          "Server Error",
+          error.response?.data?.message || "Internal server error",
+        );
+      } else if (error.code === "ECONNABORTED") {
+        Alert.alert("Timeout", "Request took too long.");
+      } else if (error.message === "Network Error") {
+        Alert.alert("Network Error", "Cannot connect to server.");
+      } else {
+        Alert.alert("Error", "Something went wrong while updating stock");
+      }
+    } finally {
+      setUpdatingStock(false);
+      setCurrentProductId(null);
+    }
+  };
+
+  const renderItem = ({ item, index }) => {
+    const circleColor =
+      (item.status || "").toLowerCase() === "in stock" ? "#22c55e" : "#ef4444";
+    const isCurrentlyUpdating = updatingStock && currentProductId === item.id;
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => handleOpenProduct(item.id)}
+        style={{ marginRight: moderateScale(12) }}
+      >
+        <View style={styles.listingCard}>
+          <View style={styles.cardContent}>
+            <View style={styles.imageContainer}>
+              <Image
+                source={{ uri: item.image || PLACEHOLDER_IMAGE }}
+                style={styles.itemImage}
+                resizeMode="stretch"
+              />
+              <View
+                style={{
+                  position: "absolute",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 2,
+                  backgroundColor: "rgba(141, 141, 141, 0.6)",
+                  bottom: moderateScale(5),
+                  left: moderateScale(5),
+                  borderRadius: moderateScale(10),
+                  paddingHorizontal: moderateScale(5),
+                }}
+              >
+                <Image
+                  source={require("../../assets/via-farm-img/icons/satar.png")}
+                />
+                <Text
+                  style={{ color: "#fff", fontSize: normalizeFont(11 + 2) }}
+                  allowFontScaling={false}
+                >
+                  5.0
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.textContainer}>
+              <View style={styles.headerRow}>
+                <Text
+                  style={styles.itemName}
+                  numberOfLines={1}
+                  allowFontScaling={false}
+                >
+                  {item.name}
+                </Text>
+                <View style={styles.priceQuantityContainer}>
+                  <Text style={styles.priceText} allowFontScaling={false}>
+                    ₹{item.price}/{item.unit}
+                  </Text>
+                  <Text style={styles.quantity} allowFontScaling={false}>
+                    {item.weightPerPiece}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.detailsContainer}>
+                <Text style={styles.uploadLabel} allowFontScaling={false}>
+                  Uploaded on:
+                </Text>
+                <Text style={styles.uploadLabel} allowFontScaling={false}>
+                  {item.uploadedOn}
+                </Text>
+              </View>
+
+              <View style={styles.startAllIndia}>
+                <Image
+                  source={require("../../assets/via-farm-img/icons/satar.png")}
+                />
+                <Text style={styles.txetAll} allowFontScaling={false}>
+                  All India Delivery
+                </Text>
+              </View>
+
+              <View style={styles.editBtn}>
+                <TouchableOpacity
+                  ref={(ref) => {
+                    stockButtonRefs.current[item.id] = ref;
+                  }}
+                  style={[
+                    styles.dropdownBtn,
+                    isCurrentlyUpdating && styles.dropdownBtnDisabled,
+                  ]}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    openStockDropdown(item.id);
+                  }}
+                  disabled={isCurrentlyUpdating}
+                >
+                  {isCurrentlyUpdating ? (
+                    <View style={styles.statusRow}>
+                      <ActivityIndicator
+                        size="small"
+                        color="rgba(255,202,40,1)"
+                      />
+                      <Text
+                        style={styles.statusTextUpdating}
+                        allowFontScaling={false}
+                      >
+                        Updating...
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.statusRow}>
+                      <View
+                        style={[
+                          styles.statusCircle,
+                          { backgroundColor: circleColor },
+                        ]}
+                      />
+                      <Text
+                        style={[styles.statusText, { color: circleColor }]}
+                        allowFontScaling={false}
+                      >
+                        {item.status}
+                      </Text>
+                    </View>
+                  )}
+                  <Image
+                    source={require("../../assets/via-farm-img/icons/downArrow.png")}
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    openModal(item);
+                  }}
+                  disabled={isCurrentlyUpdating}
+                >
+                  <Image
+                    source={require("../../assets/via-farm-img/icons/editicon.png")}
+                    style={[
+                      styles.editIcon,
+                      isCurrentlyUpdating && styles.editIconDisabled,
+                    ]}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const keyExtractor = (item, index) => {
+    if (item?.id) return String(item.id);
+    return `listing-fallback-${index}`;
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="rgba(255,202,40,1)" />
+        <Text style={styles.loadingText} allowFontScaling={false}>
+          Loading products...
+        </Text>
+      </View>
+    );
+  }
+
+  if (!listingsData || listingsData.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText} allowFontScaling={false}>
+          No products found
+        </Text>
+        <Text style={styles.emptySubText} allowFontScaling={false}>
+          Start adding products to see them here
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.headerRowContainer}>
+        <Text style={styles.headerTitle} allowFontScaling={false}>
+          My Recent Listings
+        </Text>
+        <TouchableOpacity
+          onPress={viewAll}
+          style={{
+            flexDirection: "row",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: scale(5),
+          }}
+        >
+          <Text style={styles.seeAll} allowFontScaling={false}>
+            See All
+          </Text>
+          <Image source={require("../../assets/via-farm-img/icons/see.png")} />
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={listingsData}
+        horizontal
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.flatListContent}
+      />
+
+      {/* Stock Dropdown Modal */}
+      <Modal
+        visible={isStockDropdownOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsStockDropdownOpen(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setIsStockDropdownOpen(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View
+                style={[
+                  styles.stockDropdown,
+                  {
+                    position: "absolute",
+                    top: stockDropdownPosition.y,
+                    left: stockDropdownPosition.x,
+                  },
+                ]}
+              >
+                <TouchableOpacity
+                  style={styles.stockOption}
+                  onPress={() => handleStockChange("In Stock")}
+                >
+                  <View
+                    style={[styles.stockDot, { backgroundColor: "#22c55e" }]}
+                  />
+                  <Text style={styles.stockOptionText} allowFontScaling={false}>
+                    In Stock
+                  </Text>
+                </TouchableOpacity>
+
+                <View style={styles.stockDivider} />
+
+                <TouchableOpacity
+                  style={styles.stockOption}
+                  onPress={() => handleStockChange("Out of Stock")}
+                >
+                  <View
+                    style={[styles.stockDot, { backgroundColor: "#ef4444" }]}
+                  />
+                  <Text style={styles.stockOptionText} allowFontScaling={false}>
+                    Out of Stock
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Product Edit Modal */}
+      {selectedProduct && (
+        <ProductModal
+          visible={modalVisible}
+          onClose={closeModal}
+          onSubmit={submitModal}
+          product={selectedProduct}
+        />
+      )}
+    </View>
+  );
+};
+
+export default MyRecentListing;
+
+/* styles (kept same as your original but font sizes increased by 2px via normalizeFont(... +2)) */
+const styles = StyleSheet.create({
+  container: {
+    paddingVertical: moderateScale(16),
+    backgroundColor: "#fff",
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  loadingText: {
+    marginTop: moderateScale(12),
+    fontSize: normalizeFont(12 + 2),
+    color: "#666",
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    paddingHorizontal: scale(20),
+  },
+  emptyText: {
+    fontSize: normalizeFont(12 + 2),
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: moderateScale(8),
+  },
+  emptySubText: {
+    fontSize: normalizeFont(12 + 2),
+    color: "#666",
+    textAlign: "center",
+  },
+  headerRowContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: moderateScale(12),
+    paddingVertical: moderateScale(10),
+  },
+  headerTitle: {
+    fontSize: normalizeFont(15),
+    fontWeight: "500",
+    color: "#333",
+    flexShrink: 1,
+  },
+
+  seeAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: scale(5),
+    flexShrink: 0,
+  },
+
+  seeAll: {
+    fontSize: normalizeFont(12),
+    color: "rgba(1, 151, 218, 1)",
+    fontWeight: "500",
+    flexShrink: 0,
+  },
+
+  seeIcon: {
+    width: moderateScale(14),
+    height: moderateScale(14),
+    resizeMode: "contain",
+  },
+
+  flatListContent: {
+    paddingHorizontal: scale(12),
+  },
+  listingCard: {
+    backgroundColor: "#fff",
+    borderRadius: moderateScale(8),
+    marginRight: scale(15),
+    borderWidth: 1,
+    borderColor: "rgba(255, 202, 40, 1)",
+    width: Math.min(width * 0.94, scale(520)),
+    alignSelf: "center",
+  },
+  cardContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: moderateScale(12),
+  },
+  imageContainer: {
+    width: scale(140),
+    height: moderateScale(150),
+  },
+  itemImage: {
+    width: "100%",
+    height: "100%",
+    borderTopLeftRadius: moderateScale(6),
+    borderBottomLeftRadius: moderateScale(6),
+    resizeMode: "cover",
+  },
+  textContainer: {
+    flex: 1,
+    paddingRight: scale(12),
+    paddingVertical: moderateScale(4),
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: moderateScale(8),
+  },
+  itemName: {
+    fontSize: normalizeFont(11 + 2),
+    fontWeight: "600",
+    color: "#424242",
+    flex: 1,
+    marginRight: scale(8),
+  },
+  priceQuantityContainer: {
+    alignItems: "flex-end",
+  },
+  priceText: {
+    fontSize: normalizeFont(11 + 2),
+    fontWeight: "700",
+    color: "#2E7D32",
+  },
+  quantity: {
+    fontSize: normalizeFont(10 + 2),
+    color: "#666",
+    marginTop: moderateScale(2),
+  },
+  detailsContainer: {
+    flexDirection: "row",
+    gap: moderateScale(4),
+    marginBottom: moderateScale(4),
+  },
+  uploadLabel: {
+    fontSize: normalizeFont(9 + 2),
+    color: "#666",
+  },
+  uploadValue: {
+    fontSize: normalizeFont(11 + 2),
+    color: "#000",
+    fontWeight: "500",
+  },
+  startAllIndia: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: moderateScale(5),
+    fontSize: normalizeFont(10 + 2),
+    marginVertical: moderateScale(4),
+  },
+  txetAll: {
+    fontSize: normalizeFont(10 + 2),
+  },
+  editBtn: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: moderateScale(8),
+  },
+  dropdownBtn: {
+    padding: moderateScale(3),
+    paddingHorizontal: moderateScale(10),
+    borderRadius: moderateScale(6),
+    borderWidth: 1,
+    borderColor: "rgba(0, 0, 0, 0.3)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: moderateScale(5),
+  },
+  dropdownBtnDisabled: {
+    opacity: 0.6,
+    borderColor: "rgba(0, 0, 0, 0.15)",
+  },
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: moderateScale(6),
+  },
+  statusCircle: {
+    width: moderateScale(10),
+    height: moderateScale(10),
+    borderRadius: moderateScale(5),
+  },
+  statusText: {
+    fontSize: normalizeFont(11 + 2),
+    fontWeight: "500",
+  },
+  statusTextUpdating: {
+    fontSize: normalizeFont(12 + 2),
+    fontWeight: "500",
+    color: "#666",
+  },
+  editButton: {
+    padding: moderateScale(6),
+    borderRadius: moderateScale(4),
+  },
+  editIcon: {
+    width: scale(20),
+    height: scale(20),
+  },
+  editIconDisabled: {
+    opacity: 0.4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.1)",
+  },
+  stockDropdown: {
+    marginLeft: moderateScale(50),
+    backgroundColor: "#fff",
+    borderRadius: moderateScale(8),
+    paddingVertical: moderateScale(8),
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: moderateScale(4) },
+    shadowOpacity: 0.3,
+    shadowRadius: moderateScale(12),
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 202, 40, 1)",
+    zIndex: 1000,
+  },
+  stockOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: moderateScale(8),
+    paddingHorizontal: moderateScale(12),
+    gap: moderateScale(8),
+  },
+  stockOptionText: {
+    fontSize: normalizeFont(12 + 2),
+    fontWeight: "500",
+    color: "#374151",
+  },
+  stockDivider: {
+    height: 1,
+    backgroundColor: "#f3f4f6",
+    marginHorizontal: moderateScale(8),
+  },
+  stockDot: {
+    width: moderateScale(8),
+    height: moderateScale(8),
+    borderRadius: moderateScale(4),
+  },
+});

@@ -1,0 +1,1101 @@
+// screens/.../SmartPicks.js  (replace your current file with this)
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useNavigation } from "@react-navigation/native";
+import axios from "axios";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  DeviceEventEmitter,
+  Dimensions,
+  FlatList,
+  Modal,
+  PixelRatio,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+} from "react-native";
+import ProductCard from "../../../components/common/ProductCard";
+
+const API_BASE = "https://w7xqb95q-5000.inc1.devtunnels.ms";
+const ENDPOINT = "/api/buyer/smart-picks";
+const WISHLIST_ADD_ENDPOINT = "/api/buyer/wishlist/add";
+const WISHLIST_REMOVE_ENDPOINT = "/api/buyer/wishlist";
+const CART_ADD_ENDPOINT = "/api/buyer/cart/add";
+const CART_GET = "/api/buyer/cart";
+
+// ---------- Responsive helpers ----------
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const guidelineBaseWidth = 375;
+const guidelineBaseHeight = 812;
+
+const scale = (size) => (SCREEN_WIDTH / guidelineBaseWidth) * size;
+const verticalScale = (size) => (SCREEN_HEIGHT / guidelineBaseHeight) * size;
+const moderateScale = (size, factor = 0.5) =>
+  size + (scale(size) - size) * factor;
+
+const normalizeFont = (size) => {
+  const newSize = moderateScale(size);
+  if (Platform.OS === "ios") {
+    return Math.round(PixelRatio.roundToNearestPixel(newSize));
+  } else {
+    return Math.round(PixelRatio.roundToNearestPixel(newSize)) - 1;
+  }
+};
+// -----------------------------------------
+
+const ITEM_CARD_WIDTH = Math.round(moderateScale(150));
+const ITEM_HORIZONTAL_MARGIN = Math.round(moderateScale(8));
+const ITEM_FULL = ITEM_CARD_WIDTH + ITEM_HORIZONTAL_MARGIN * 2;
+
+const log = (...args) => console.log("[SmartPicks]", ...args);
+
+const SmartPicks = () => {
+  const navigation = useNavigation();
+
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [categories, setCategories] = useState(["All"]);
+  const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [favorites, setFavorites] = useState(new Set());
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [cartItems, setCartItems] = useState({});
+  const [updatingMap, setUpdatingMap] = useState({});
+  const cartItemsRef = useRef(cartItems);
+  const filterBtnRef = useRef(null);
+  const [filterBtnPosition, setFilterBtnPosition] = useState({
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+  });
+
+  useEffect(() => {
+    cartItemsRef.current = cartItems;
+  }, [cartItems]);
+
+  const favoritesRef = useRef(favorites);
+  useEffect(() => {
+    favoritesRef.current = favorites;
+  }, [favorites]);
+
+  // normalize / mapping helpers
+  const normalizeApiItem = (item = {}) => {
+    const productId = String(item.productId ?? item._id ?? item.id ?? "");
+    const id = String(item.id ?? item._id ?? productId);
+    let vendorName = "";
+    if (item.vendor?.name) vendorName = item.vendor.name;
+    else if (item.vendorName) vendorName = item.vendorName;
+    else if (item.seller?.name) vendorName = item.seller.name;
+
+    const unitFromApi =
+      item.unit ??
+      item.uom ??
+      item.measurement ??
+      item.unitOfMeasure ??
+      item.unit_name ??
+      item.uom_name ??
+      item.uomType ??
+      (item.raw && item.raw.unit) ??
+      "";
+
+    const weightCandidates = [
+      "weightPerPiece",
+      "weight_per_piece",
+      "weight",
+      "pieceWeight",
+      "weightPerPc",
+      "wpp",
+      "netWeight",
+      "net_weight",
+      "grossWeight",
+      "weight_in_g",
+      "weight_in_kg",
+      "weightValue",
+      "measurementValue",
+      "size",
+      "packSize",
+    ];
+
+    let weightValue = "";
+    for (const key of weightCandidates) {
+      if (
+        Object.prototype.hasOwnProperty.call(item, key) &&
+        item[key] != null &&
+        String(item[key]).trim() !== ""
+      ) {
+        weightValue = String(item[key]).trim();
+        break;
+      }
+      if (
+        item.raw &&
+        Object.prototype.hasOwnProperty.call(item.raw, key) &&
+        item.raw[key] != null &&
+        String(item.raw[key]).trim() !== ""
+      ) {
+        weightValue = String(item.raw[key]).trim();
+        break;
+      }
+    }
+    if (weightValue) {
+      const numClean = weightValue.replace(/[^\d.]/g, "");
+      if (numClean && numClean === weightValue) {
+        if (
+          String(unitFromApi).toLowerCase().includes("kg") ||
+          String(weightValue).length > 3
+        ) {
+          weightValue = `${numClean}${String(unitFromApi || "kg")}`;
+        } else if (String(unitFromApi).toLowerCase().includes("g")) {
+          weightValue = `${numClean}${String(unitFromApi || "g")}`;
+        } else {
+          weightValue = `${numClean}${unitFromApi || "pcs"}`;
+        }
+      }
+    }
+
+    return {
+      raw: item,
+      productId,
+      id,
+      title: item.name ?? item.title ?? "Product",
+      subtitle: vendorName || item.variety || "",
+      price: Number(item.price ?? item.mrp ?? 0),
+      image: item.image || item.imageUrl || null,
+      category:
+        item.category ??
+        (typeof item.categoryName === "string" ? item.categoryName : "General"),
+      rating: item.rating ?? 0,
+      ratingCount: item.ratingCount ?? 0,
+      unit: unitFromApi || "",
+      weightPerPiece: weightValue || "",
+    };
+  };
+
+  const mapApiItemToProduct = useCallback((item) => {
+    const n = normalizeApiItem(item);
+    return {
+      id: n.id,
+      title: n.title,
+      subtitle: n.subtitle,
+      price: n.price,
+      rating: n.rating,
+      ratingCount: n.ratingCount,
+      image: n.image,
+      isFavorite: false,
+      raw: n.raw,
+      productId: String(n.productId || n.id),
+      category: n.category,
+      unit: n.unit,
+      weightPerPiece: n.weightPerPiece,
+    };
+  }, []);
+
+  // fetch products
+  const fetchProducts = useCallback(
+    async (isRefresh = false) => {
+      try {
+        if (isRefresh) setRefreshing(true);
+        else setLoading(true);
+
+        const token = await AsyncStorage.getItem("userToken");
+        const res = await axios.get(`${API_BASE}${ENDPOINT}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          timeout: 10000,
+        });
+
+        if (res?.data?.success && Array.isArray(res.data.data)) {
+          const mapped = res.data.data.map(mapApiItemToProduct);
+          setProducts(mapped);
+        } else if (res?.data?.data) {
+          const arr = Array.isArray(res.data.data)
+            ? res.data.data
+            : Object.values(res.data.data);
+          setProducts(arr.map(mapApiItemToProduct));
+        } else {
+          setProducts([]);
+        }
+      } catch (error) {
+        console.error("Error fetching smart picks:", error);
+        setProducts([]);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [mapApiItemToProduct],
+  );
+
+  // fetch cart (authoritative)
+  const fetchCart = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      if (!token) {
+        setCartItems({});
+        return;
+      }
+      const response = await axios.get(`${API_BASE}${CART_GET}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.data?.success) {
+        const items = response.data.data?.items || [];
+        const cartMap = {};
+        items.forEach((item) => {
+          const productIdKey = String(
+            item.productId ?? item._id ?? item.id ?? "",
+          );
+          const cartItemId = item._id ?? item.id ?? item.cartItemId ?? null;
+          cartMap[productIdKey] = {
+            quantity: item.quantity ?? 1,
+            cartItemId,
+            raw: item,
+          };
+        });
+        setCartItems(cartMap);
+      } else {
+        setCartItems({});
+      }
+    } catch (error) {
+      console.error("Error fetching cart:", error);
+      setCartItems({});
+    }
+  }, []);
+
+  // fetch wishlist
+  const fetchWishlist = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      if (!token) return;
+      const response = await axios.get(`${API_BASE}/api/buyer/wishlist`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.data?.success) {
+        const wishlistItems = response.data.data?.items || [];
+        const favoriteIds = new Set(
+          wishlistItems.map((i) => String(i.productId ?? i._id ?? i.id ?? "")),
+        );
+        setFavorites(favoriteIds);
+      }
+    } catch (error) {
+      console.error("Error fetching wishlist:", error);
+    }
+  }, []);
+
+  // fetch categories
+  const fetchCategories = useCallback(async () => {
+    try {
+      const res = await axios.get(
+        `${API_BASE}/api/admin/manage-app/categories`,
+        {
+          timeout: 10000,
+        },
+      );
+      const catArr = Array.isArray(res.data?.categories)
+        ? res.data.categories
+        : [];
+      const seen = new Set();
+      const names = [];
+      for (const c of catArr) {
+        const rawName =
+          typeof c.name === "string" ? c.name : String(c.name ?? c._id ?? "");
+        const name = rawName.trim();
+        if (!name) continue;
+        const lower = name.toLowerCase();
+        if (!seen.has(lower)) {
+          seen.add(lower);
+          names.push(name);
+        }
+      }
+      setCategories(["All", ...names]);
+      // Set initial selected category to 'All' if it's not in the list
+      if (selectedCategory && selectedCategory !== "All") {
+        const found = names.find(
+          (n) => n.toLowerCase() === selectedCategory.toLowerCase(),
+        );
+        if (!found) setSelectedCategory("All");
+      }
+    } catch (err) {
+      console.error("Error fetching categories:", err);
+      setCategories(["All"]);
+    }
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    fetchProducts();
+    fetchWishlist();
+    fetchCart();
+    fetchCategories();
+
+    const sub = DeviceEventEmitter.addListener("cartUpdated", () => {
+      fetchCart();
+    });
+    return () => {
+      try {
+        sub?.remove?.();
+      } catch (e) {
+        // ignore
+      }
+    };
+  }, [fetchProducts, fetchWishlist, fetchCart, fetchCategories]);
+
+  // filtered products by category
+  useEffect(() => {
+    const filtered =
+      selectedCategory === "All"
+        ? products
+        : products.filter(
+            (p) =>
+              String(p.category || "").toLowerCase() ===
+              String(selectedCategory).toLowerCase(),
+          );
+    setFilteredProducts(filtered);
+  }, [products, selectedCategory]);
+
+  // Get filter button position for dropdown
+  const handleFilterBtnLayout = useCallback(() => {
+    if (filterBtnRef.current) {
+      filterBtnRef.current.measure((x, y, width, height, pageX, pageY) => {
+        setFilterBtnPosition({
+          x: pageX,
+          y: pageY,
+          width,
+          height,
+        });
+      });
+    }
+  }, []);
+
+  // Simple toggle for dropdown
+  const toggleDropdown = useCallback(() => {
+    // First get the button position
+    handleFilterBtnLayout();
+    setShowDropdown((prev) => !prev);
+  }, [handleFilterBtnLayout]);
+  const handleCategorySelect = useCallback((category) => {
+    setSelectedCategory(category);
+    setShowDropdown(false);
+  }, []);
+
+  const handleCloseDropdown = useCallback(() => {
+    if (showDropdown) {
+      setShowDropdown(false);
+    }
+  }, [showDropdown]);
+
+  // updating flags helpers
+  const setUpdating = useCallback((id, v) => {
+    setUpdatingMap((prev) => ({ ...prev, [id]: v }));
+  }, []);
+
+  // optimistic addToCart
+  const addToCart = useCallback(
+    async (product) => {
+      const productId = String(product.productId ?? product.id ?? "");
+      if (!productId) {
+        Alert.alert("Error", "Invalid product id");
+        return false;
+      }
+      if (updatingMap[productId]) {
+        log("addToCart: in progress", productId);
+        return false;
+      }
+
+      const token = await AsyncStorage.getItem("userToken");
+      if (!token) {
+        Alert.alert("Login Required", "Please login to add items to cart");
+        return false;
+      }
+
+      setUpdating(productId, true);
+      setCartItems((prev) => {
+        if (prev[productId]) return prev;
+        return {
+          ...prev,
+          [productId]: {
+            quantity: 1,
+            cartItemId: prev[productId]?.cartItemId || null,
+          },
+        };
+      });
+
+      try {
+        const payload = {
+          productId,
+          name: product.title,
+          image: product.image || product.raw?.image || "",
+          price: Number(product.price || 0),
+          quantity: 1,
+          category: product.category || "General",
+          variety: product.subtitle || product.raw?.variety || "Standard",
+          unit: product.unit || product.raw?.unit || "piece",
+        };
+
+        const response = await axios.post(
+          `${API_BASE}${CART_ADD_ENDPOINT}`,
+          payload,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            timeout: 10000,
+          },
+        );
+
+        if (response.data?.success) {
+          await fetchCart();
+          DeviceEventEmitter.emit("cartUpdated");
+          setUpdating(productId, false);
+          return true;
+        } else {
+          setCartItems((prev) => {
+            const next = { ...prev };
+            delete next[productId];
+            return next;
+          });
+          setUpdating(productId, false);
+          const msg = response.data?.message || "Failed to add to cart";
+          Alert.alert("Info", msg);
+          return false;
+        }
+      } catch (err) {
+        console.error("Error adding to cart:", err);
+        setCartItems((prev) => {
+          const next = { ...prev };
+          delete next[productId];
+          return next;
+        });
+        setUpdating(productId, false);
+        const status = err.response?.status;
+        const msg =
+          err.response?.data?.message || err.message || "Failed to add to cart";
+        if (status === 401)
+          Alert.alert("Login Required", "Please login to add items");
+        else if (status === 400) Alert.alert("Info", msg);
+        else Alert.alert("Error", msg);
+        await fetchCart();
+        return false;
+      }
+    },
+    [fetchCart, updatingMap, setUpdating],
+  );
+
+  // optimistic update quantity
+  const updateCartQuantity = useCallback(
+    async (product, newQty) => {
+      const productIdKey = String(product.productId ?? product.id ?? "");
+      if (!productIdKey) return;
+
+      if (updatingMap[productIdKey]) {
+        log("updateCartQuantity: already updating", productIdKey);
+        return;
+      }
+
+      const token = await AsyncStorage.getItem("userToken");
+      if (!token) {
+        Alert.alert("Login Required", "Please login to update cart");
+        return;
+      }
+
+      const entry = cartItemsRef.current[productIdKey];
+      if (!entry || !entry.cartItemId) {
+        await fetchCart();
+        return;
+      }
+
+      const cartItemId = entry.cartItemId;
+
+      setUpdating(productIdKey, true);
+      setCartItems((prev) => {
+        const prevEntry = prev[productIdKey] || { quantity: 0, cartItemId };
+        return { ...prev, [productIdKey]: { ...prevEntry, quantity: newQty } };
+      });
+
+      try {
+        if (newQty <= 0) {
+          const delRes = await axios.delete(
+            `${API_BASE}/api/buyer/cart/${cartItemId}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+              timeout: 10000,
+            },
+          );
+          if (delRes.data?.success) {
+            await fetchCart();
+            DeviceEventEmitter.emit("cartUpdated");
+            setUpdating(productIdKey, false);
+            return;
+          } else {
+            throw new Error(delRes.data?.message || "Failed to remove item");
+          }
+        } else {
+          const res = await axios.put(
+            `${API_BASE}/api/buyer/cart/${cartItemId}/quantity`,
+            { quantity: newQty },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              timeout: 10000,
+            },
+          );
+          if (res.data?.success) {
+            await fetchCart();
+            DeviceEventEmitter.emit("cartUpdated");
+            setUpdating(productIdKey, false);
+            return;
+          } else {
+            throw new Error(res.data?.message || "Failed to update quantity");
+          }
+        }
+      } catch (err) {
+        console.error("Error updating cart quantity:", err);
+        await fetchCart();
+        setUpdating(productIdKey, false);
+        const msg =
+          err.response?.data?.message || err.message || "Failed to update cart";
+        Alert.alert("Error", msg);
+      }
+    },
+    [fetchCart, updatingMap, setUpdating],
+  );
+
+  // wishlist flows
+  const addToWishlist = useCallback(async (product) => {
+    const productId = String(product.productId ?? product.id ?? "");
+    if (!productId) return false;
+    const token = await AsyncStorage.getItem("userToken");
+    if (!token) {
+      Alert.alert("Login Required", "Please login to add items to wishlist");
+      return false;
+    }
+
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      next.add(productId);
+      return next;
+    });
+
+    try {
+      const payload = {
+        productId,
+        name: product.title,
+        image: product.image,
+        price: product.price,
+        category: product.category,
+        variety: product.subtitle || "Standard",
+        unit: product.unit || "piece",
+      };
+      const response = await axios.post(
+        `${API_BASE}${WISHLIST_ADD_ENDPOINT}`,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          timeout: 10000,
+        },
+      );
+      if (response.data?.success) {
+        return true;
+      } else {
+        throw new Error(response.data?.message || "Failed to add to wishlist");
+      }
+    } catch (err) {
+      console.error("Error adding wishlist:", err);
+      setFavorites((prev) => {
+        const next = new Set(prev);
+        next.delete(productId);
+        return next;
+      });
+      const msg =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to add to wishlist";
+      Alert.alert("Error", msg);
+      return false;
+    }
+  }, []);
+
+  const removeFromWishlist = useCallback(async (product) => {
+    const productId = String(product.productId ?? product.id ?? "");
+    if (!productId) return false;
+    const token = await AsyncStorage.getItem("userToken");
+    if (!token) {
+      Alert.alert("Login Required", "Please login to manage wishlist");
+      return false;
+    }
+
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      next.delete(productId);
+      return next;
+    });
+
+    try {
+      const response = await axios.delete(
+        `${API_BASE}${WISHLIST_REMOVE_ENDPOINT}/${productId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 10000,
+        },
+      );
+      if (response.data?.success) {
+        return true;
+      } else {
+        throw new Error(
+          response.data?.message || "Failed to remove from wishlist",
+        );
+      }
+    } catch (err) {
+      console.error("Error removing wishlist:", err);
+      setFavorites((prev) => new Set(prev).add(productId));
+      const msg =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to remove from wishlist";
+      Alert.alert("Error", msg);
+      return false;
+    }
+  }, []);
+
+  // navigation / handlers for ProductCard
+  const handleCardPress = useCallback(
+    (productId, item) => {
+      try {
+        navigation.navigate("ViewProduct", {
+          productId: String(productId),
+          product: item,
+        });
+      } catch (err) {
+        console.error("Navigation error to ViewProduct:", err);
+        Alert.alert("Error", "Unable to open product details.");
+      }
+    },
+    [navigation],
+  );
+
+  const handleFavoritePress = useCallback(
+    async (productId) => {
+      const product = filteredProducts.find((p) => p.id === productId);
+      if (!product) return;
+      const pid = String(product.productId ?? product.id);
+      if (favoritesRef.current.has(pid)) {
+        await removeFromWishlist(product);
+      } else {
+        await addToWishlist(product);
+      }
+      fetchWishlist().catch((e) =>
+        console.warn("fetchWishlist after toggle failed", e),
+      );
+    },
+    [filteredProducts, addToWishlist, removeFromWishlist, fetchWishlist],
+  );
+
+  const handleAddToCart = useCallback(
+    async (productId) => {
+      const product = filteredProducts.find((p) => p.id === productId);
+      if (!product) return;
+      await addToCart(product);
+    },
+    [filteredProducts, addToCart],
+  );
+
+  const handleQuantityChange = useCallback(
+    async (productId, change) => {
+      const product = filteredProducts.find((p) => p.id === productId);
+      if (!product) return;
+      const key = String(product.productId ?? product.id);
+      const currentQty = cartItemsRef.current[key]?.quantity ?? 0;
+      const newQty = Math.max(0, currentQty + change);
+      await updateCartQuantity(product, newQty);
+    },
+    [filteredProducts, updateCartQuantity],
+  );
+
+  // render item
+  const renderProductCard = useCallback(
+    ({ item }) => {
+      const productIdKey = item.productId || item.id;
+      const inCart = !!cartItems[productIdKey];
+      const quantity = cartItems[productIdKey]?.quantity || 0;
+      const isUpdating = !!updatingMap[productIdKey];
+
+      return (
+        <View style={[styles.cardWrapper, { width: ITEM_CARD_WIDTH }]}>
+          <ProductCard
+            id={item.id}
+            title={item.title}
+            subtitle={item.subtitle}
+            price={item.price}
+            unit={item.unit}
+            weightPerPiece={item.weightPerPiece}
+            rating={item.rating}
+            image={item.image}
+            isFavorite={favorites.has(String(item.productId ?? item.id))}
+            onPress={() => handleCardPress(item.productId ?? item.id, item)}
+            onFavoritePress={() => handleFavoritePress(item.id)}
+            onAddToCart={() => {
+              if (isUpdating) {
+                log("addToCart click ignored for", productIdKey);
+                return;
+              }
+              handleAddToCart(item.id);
+            }}
+            onQuantityChange={(change) => {
+              if (isUpdating) {
+                log("quantity click ignored for", productIdKey);
+                return;
+              }
+              handleQuantityChange(item.id, change);
+            }}
+            inCart={inCart}
+            cartQuantity={quantity}
+            width={ITEM_CARD_WIDTH}
+            showRating
+            showFavorite
+            imageHeight={Math.round(moderateScale(120))}
+          />
+        </View>
+      );
+    },
+    [
+      favorites,
+      cartItems,
+      handleCardPress,
+      handleFavoritePress,
+      handleAddToCart,
+      handleQuantityChange,
+      updatingMap,
+    ],
+  );
+
+  // loading placeholder
+  if (loading && !refreshing) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text allowFontScaling={false} style={styles.loadingText}>
+          Loading Smart Picks...
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text allowFontScaling={false} style={styles.title} numberOfLines={1}>
+          Smart Picks
+        </Text>
+
+        {/* FILTER BUTTON */}
+        <View style={styles.filterWrapper}>
+          <TouchableOpacity
+            style={styles.filterBtn}
+            onPress={toggleDropdown}
+            onLayout={handleFilterBtnLayout}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
+            ref={filterBtnRef}
+          >
+            <Text
+              allowFontScaling={false}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              style={styles.filterText}
+            >
+              {selectedCategory}
+            </Text>
+            <Ionicons
+              name={showDropdown ? "chevron-up" : "chevron-down"}
+              size={normalizeFont(14)}
+              color="#666"
+              style={styles.filterIcon}
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* DROPDOWN MODAL - EXACTLY BELOW FILTER BUTTON */}
+      <Modal
+        visible={showDropdown}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCloseDropdown}
+      >
+        <TouchableWithoutFeedback onPress={handleCloseDropdown}>
+          <View style={styles.modalOverlay}>
+            <View
+              style={[
+                styles.dropdownContainer,
+                {
+                  top: filterBtnPosition.y + filterBtnPosition.height,
+                  left: filterBtnPosition.x,
+                  width: filterBtnPosition.width,
+                },
+              ]}
+            >
+              <ScrollView
+                style={styles.dropdownScroll}
+                contentContainerStyle={styles.dropdownScrollContent}
+                nestedScrollEnabled={true}
+                showsVerticalScrollIndicator={true}
+                keyboardShouldPersistTaps="handled"
+                bounces={false}
+              >
+                {categories.map((category) => {
+                  const isSelected =
+                    String(category).toLowerCase() ===
+                    String(selectedCategory).toLowerCase();
+                  return (
+                    <TouchableOpacity
+                      key={category}
+                      style={[
+                        styles.dropdownItem,
+                        isSelected && styles.selectedDropdownItem,
+                      ]}
+                      activeOpacity={0.6}
+                      onPress={() => handleCategorySelect(category)}
+                    >
+                      <Text
+                        allowFontScaling={false}
+                        style={[
+                          styles.dropdownText,
+                          isSelected && styles.selectedDropdownText,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {category}
+                      </Text>
+                      {isSelected && (
+                        <Ionicons
+                          name="checkmark"
+                          size={normalizeFont(12)}
+                          color="#4CAF50"
+                          style={styles.checkIcon}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* PRODUCTS LIST */}
+      <FlatList
+        data={filteredProducts}
+        renderItem={renderProductCard}
+        keyExtractor={(item) => String(item.productId ?? item.id)}
+        horizontal
+        contentContainerStyle={styles.listContainer}
+        showsHorizontalScrollIndicator={false}
+        style={styles.flatListStyle}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              fetchProducts(true);
+              fetchCart();
+            }}
+          />
+        }
+        ListEmptyComponent={
+          !loading && (
+            <View style={styles.emptyContainer}>
+              <Text allowFontScaling={false} style={styles.emptyText}>
+                {selectedCategory === "All"
+                  ? "No products available."
+                  : `No products available in ${selectedCategory} category.`}
+              </Text>
+            </View>
+          )
+        }
+        initialNumToRender={5}
+        removeClippedSubviews={false}
+        extraData={{
+          favorites: Array.from(favorites),
+          cartItems,
+          selectedCategory,
+          updatingMap,
+        }}
+        getItemLayout={(data, index) => ({
+          length: ITEM_FULL,
+          offset: ITEM_FULL * index,
+          index,
+        })}
+        windowSize={5}
+        maxToRenderPerBatch={6}
+        bounces={false}
+        alwaysBounceHorizontal={false}
+        contentInsetAdjustmentBehavior="never"
+        decelerationRate="normal"
+        scrollEventThrottle={16}
+      />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+
+  /* Loading */
+  loadingContainer: {
+    paddingVertical: verticalScale(30),
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
+  },
+  loadingText: {
+    marginTop: verticalScale(10),
+    fontSize: normalizeFont(12),
+    color: "#666",
+  },
+
+  /* Header */
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: verticalScale(6),
+    paddingTop: verticalScale(10),
+    paddingHorizontal: moderateScale(13),
+    position: "relative",
+    zIndex: 100,
+  },
+  title: {
+    fontSize: normalizeFont(15),
+    fontWeight: "600",
+    color: "#333",
+    flex: 1,
+    marginRight: moderateScale(8),
+  },
+
+  /* FILTER */
+  filterWrapper: {
+    position: "relative",
+    alignSelf: "flex-end",
+    zIndex: 200,
+  },
+  filterBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: verticalScale(8),
+    paddingHorizontal: moderateScale(12),
+    borderRadius: moderateScale(8),
+    borderWidth: 1,
+    borderColor: "rgba(66,66,66,0.7)",
+    backgroundColor: "#fff",
+    minWidth: moderateScale(120),
+    minHeight: verticalScale(36),
+    width: "100%",
+  },
+  filterText: {
+    color: "rgba(66, 66, 66, 0.9)",
+    fontSize: normalizeFont(12),
+    flexShrink: 1,
+    marginRight: moderateScale(6),
+    fontWeight: "500",
+    flex: 1,
+  },
+  filterIcon: {
+    marginLeft: moderateScale(4),
+  },
+
+  /* Modal Overlay */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+  },
+
+  /* Dropdown Container - EXACTLY BELOW FILTER BUTTON */
+  dropdownContainer: {
+    position: "absolute",
+    backgroundColor: "#fff",
+    borderRadius: moderateScale(8),
+    borderWidth: 1,
+    borderColor: "rgba(66, 66, 66, 0.7)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 10,
+    zIndex: 1000,
+    maxHeight: moderateScale(240),
+    overflow: "hidden",
+    marginTop: moderateScale(-30),
+  },
+  dropdownScroll: {
+    flex: 1,
+  },
+  dropdownScrollContent: {
+    paddingVertical: moderateScale(2),
+  },
+  dropdownItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    // paddingVertical: moderateScale(5),
+    paddingHorizontal: moderateScale(12),
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(66, 66, 66, 0.06)",
+    minHeight: verticalScale(35),
+  },
+  selectedDropdownItem: {
+    backgroundColor: "rgba(76, 175, 80, 0.08)",
+  },
+  dropdownText: {
+    color: "rgba(66, 66, 66, 0.9)",
+    fontSize: normalizeFont(12),
+    flex: 1,
+  },
+  selectedDropdownText: {
+    color: "#4CAF50",
+    fontWeight: "600",
+  },
+  checkIcon: {
+    marginLeft: moderateScale(8),
+  },
+
+  /* List */
+  listContainer: {
+    alignItems: "flex-start",
+    paddingHorizontal: moderateScale(5),
+    paddingVertical: verticalScale(8),
+  },
+  flatListStyle: {
+    paddingBottom: moderateScale(10),
+    zIndex: 1,
+  },
+  cardWrapper: {
+    marginHorizontal: ITEM_HORIZONTAL_MARGIN,
+  },
+  emptyContainer: {
+    padding: moderateScale(20),
+    alignItems: "center",
+  },
+  emptyText: {
+    color: "#666",
+    fontSize: normalizeFont(10),
+    textAlign: "center",
+    marginBottom: verticalScale(10),
+  },
+});
+
+export default SmartPicks;

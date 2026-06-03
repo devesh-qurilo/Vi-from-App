@@ -1,0 +1,78 @@
+{
+  "expo": {
+    "name": "Viafarm",
+    "slug": "viafarm",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/via-farm-img/icons/logo.png",
+    "scheme": "viafarm",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "AIzaSyCG4EdVELDakzLL4zmxPzC9JKASgqFnvZc"
+      },
+      "bundleIdentifier": "com.viafarm.android"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/via-farm-img/icons/logo.png",
+        "backgroundImage": "./assets/via-farm-img/icons/logo.png",
+        "monochromeImage": "./assets/via-farm-img/icons/logo.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.viafarm.android",
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCG4EdVELDakzLL4zmxPzC9JKASgqFnvZc"
+        }
+      }
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/via-farm-img/icons/logo.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/via-farm-img/icons/logo.png",
+          "imageWidth": 170,
+          "resizeMode": "stretch",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#000000"
+          }
+        }
+      ],
+      "expo-secure-store",
+      "expo-font",
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermissions": "Allow $(PRODUCT_NAME) to access your location"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "41abfa7b-8819-4e25-a6cd-3c5b60301f2c"
+      }
+    },
+    "owner": "viafarm"
+  }
+}
