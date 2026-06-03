@@ -24,7 +24,7 @@ import { moderateScale, normalizeFont, scale } from "./Responsive";
 
 const { width, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const placeholderImage = "https://via.placeholder.com/200";
-const API_BASE = "https://w7xqb95q-5000.inc1.devtunnels.ms";
+const API_BASE = "https://vi-farm-backend.onrender.com";
 
 // Simple star row (read-only)
 const StarRow = ({ value = 0, size = 16 }) => {

@@ -17,7 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import ProfileCard from "./../components/common/VendorsCard";
 import { moderateScale, normalizeFont, scale } from "./Responsive";
 
-const API_BASE = "https://w7xqb95q-5000.inc1.devtunnels.ms";
+const API_BASE = "https://vi-farm-backend.onrender.com";
 const API_ENDPOINT = "/api/buyer/allvendors";
 
 const ViewVendors = () => {

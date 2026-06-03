@@ -29,7 +29,7 @@ import SuggestionCard from "../myCard/RelatedProduct";
 
 const { width, height } = Dimensions.get("window");
 
-const BASE_URL = "https://w7xqb95q-5000.inc1.devtunnels.ms";
+const BASE_URL = "https://vi-farm-backend.onrender.com";
 const GET_CART_ENDPOINT = "/api/buyer/cart";
 const ADD_UPDATE_CART_ENDPOINT = "/api/buyer/cart/add";
 const DELETE_CART_ITEM_ENDPOINT = "/api/buyer/cart/";

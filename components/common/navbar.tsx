@@ -44,7 +44,7 @@ const normalizeFont = (size) => {
 };
 
 const { width } = Dimensions.get("window");
-const API_BASE_URL = "https://w7xqb95q-5000.inc1.devtunnels.ms";
+const API_BASE_URL = "https://vi-farm-backend.onrender.com";
 
 export default function HeaderDesign() {
   const [searchText, setSearchText] = useState("");

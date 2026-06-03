@@ -1,4 +1,4 @@
-import { useNavigation, NavigationProp } from "@react-navigation/native";
+import { NavigationProp, useNavigation } from "@react-navigation/native";
 import axios from "axios";
 import React, { useState } from "react";
 import {
@@ -19,7 +19,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { moderateScale, normalizeFont, scale } from "../Responsive";
 
-const FORGET_API_BASE = "https://w7xqb95q-5000.inc1.devtunnels.ms";
+const FORGET_API_BASE = "https://vi-farm-backend.onrender.com";
 
 type RootStackParamList = {
   forgetOtpVerify: {

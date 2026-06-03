@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import PromoCard from "../../common/PromCard";
 
-const BASE_URL = "https://w7xqb95q-5000.inc1.devtunnels.ms";
+const BASE_URL = "https://vi-farm-backend.onrender.com";
 const ENDPOINT =
   "/api/admin/public/manage-app/banners/placement/HomePageBottomPromo";
 

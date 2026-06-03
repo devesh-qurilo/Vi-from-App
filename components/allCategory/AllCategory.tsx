@@ -14,7 +14,7 @@ import {
   View,
 } from "react-native";
 
-const API_BASE = "https://w7xqb95q-5000.inc1.devtunnels.ms";
+const API_BASE = "https://vi-farm-backend.onrender.com";
 
 // ✅ Touchable Product Card
 const ProductCard = ({ id, name, image, onPress }) => {

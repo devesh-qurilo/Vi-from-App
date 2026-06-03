@@ -9,8 +9,8 @@
 //   const [loading, setLoading] = useState(true);
 //   const [address, setAddress] = useState([])
 
-//   const API_BASE = 'https://w7xqb95q-5000.inc1.devtunnels.ms/api/auth';
-//   const API_BUYER_BASE = 'https://w7xqb95q-5000.inc1.devtunnels.ms/api/buyer';
+//   const API_BASE = 'https://vi-farm-backend.onrender.com/api/auth';
+//   const API_BUYER_BASE = 'https://vi-farm-backend.onrender.com/api/buyer';
 
 //   useEffect(() => {
 //     const loadUser = async () => {
@@ -270,9 +270,9 @@ function AuthProviderComponent({ children }) {
   const [loading, setLoading] = useState(true);
   const [address, setAddress] = useState(null); // keep single default address or null
 
-  const API_BASE = "https://w7xqb95q-5000.inc1.devtunnels.ms/api/auth";
-  const API_BUYER_BASE = "https://w7xqb95q-5000.inc1.devtunnels.ms/api/buyer";
-  const API_ROOT = "https://w7xqb95q-5000.inc1.devtunnels.ms/api";
+  const API_BASE = "https://vi-farm-backend.onrender.com/api/auth";
+  const API_BUYER_BASE = "https://vi-farm-backend.onrender.com/api/buyer";
+  const API_ROOT = "https://vi-farm-backend.onrender.com/api";
 
   // LOAD USER ON APP START
   useEffect(() => {

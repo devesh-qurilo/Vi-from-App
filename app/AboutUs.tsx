@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { moderateScale, normalizeFont, scale } from "./Responsive";
 
-const BASE_URL = "https://w7xqb95q-5000.inc1.devtunnels.ms";
+const BASE_URL = "https://vi-farm-backend.onrender.com";
 const API_ENDPOINT = "/api/admin/manage-app/About-us";
 
 const AboutUs = ({ navigation }) => {

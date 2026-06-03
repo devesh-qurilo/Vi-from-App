@@ -15,7 +15,7 @@ import {
 import { AuthContext } from "../../app/context/AuthContext";
 import ProductCard from "../common/ProductCard";
 
-const API_BASE = "https://w7xqb95q-5000.inc1.devtunnels.ms";
+const API_BASE = "https://vi-farm-backend.onrender.com";
 const WISHLIST_ADD_ENDPOINT = "/api/buyer/wishlist/add";
 const WISHLIST_REMOVE_ENDPOINT = "/api/buyer/wishlist";
 const WISHLIST_GET_ENDPOINT = "/api/buyer/wishlist";
