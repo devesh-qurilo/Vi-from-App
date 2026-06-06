@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useRouter } from "expo-router";
+import { useRoute } from "@react-navigation/native";
 import React, { useRef, useState } from "react";
 import {
   Alert,
@@ -17,6 +18,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { moderateScale, normalizeFont, scale } from "../Responsive";
+import { getAuthenticatedRoute } from "../utility/authRouting";
 
 const API_BASE = "https://vi-farm-backend.onrender.com/api/auth";
 
@@ -25,7 +27,7 @@ const VerifyOtpWithLogin = () => {
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [timer, setTimer] = useState(60);
-  const navigation = useNavigation();
+  const router = useRouter();
   const route = useRoute();
   const mobileNumber = route.params?.mobileNumber || "";
   const otpInputs = useRef([]);
@@ -126,27 +128,14 @@ const VerifyOtpWithLogin = () => {
           );
 
           if (tokenSaved) {
-            Alert.alert("Success", data.message || "Login successful");
-
-            const userRole = data.data.user?.role;
-
-            if (userRole === "Vendor") {
-              navigation.reset({
-                index: 0,
-                routes: [{ name: "(vendors)" }],
-              });
-            } else if (userRole === "Buyer") {
-              navigation.reset({
-                index: 0,
-                routes: [{ name: "(tabs)" }],
-              });
-            } else {
-              console.warn("User role not specified, defaulting to buyer tabs");
-              navigation.reset({
-                index: 0,
-                routes: [{ name: "(tabs)" }],
-              });
-            }
+            Alert.alert("Success", data.message || "Login successful", [
+              {
+                text: "OK",
+                onPress: () => {
+                  router.replace(getAuthenticatedRoute(data.data.user));
+                },
+              },
+            ]);
           } else {
             Alert.alert("Error", "Failed to save login data");
           }

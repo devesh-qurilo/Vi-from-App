@@ -2,6 +2,7 @@ import { Redirect } from "expo-router";
 import React, { useContext } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { AuthContext } from "./context/AuthContext";
+import { getAuthenticatedRoute } from "./utility/authRouting";
 
 export default function HomeScreen() {
   const auth = useContext(AuthContext);
@@ -18,13 +19,7 @@ export default function HomeScreen() {
     return <Redirect href="/(auth)/login" />;
   }
 
-  const role = String(auth.user?.role || "").toLowerCase();
-
-  if (role === "vendor") {
-    return <Redirect href="/(vendors)" />;
-  }
-
-  return <Redirect href="/(tabs)" />;
+  return <Redirect href={getAuthenticatedRoute(auth.user) as any} />;
 }
 
 const styles = StyleSheet.create({

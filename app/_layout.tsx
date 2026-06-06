@@ -33,9 +33,10 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="(vendors)" options={{ headerShown: false }} />
+        <Stack.Screen name="vendor-pending" options={{ headerShown: false }} />
+        <Stack.Screen name="vendor-rejected" options={{ headerShown: false }} />
       </Stack>
     </AuthProvider>
   );
 }
-
 

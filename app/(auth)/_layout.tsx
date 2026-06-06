@@ -11,6 +11,7 @@ import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { AuthContext } from "../context/AuthContext";
+import { getAuthenticatedRoute } from "../utility/authRouting";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -29,8 +30,7 @@ export default function RootLayout() {
   }
 
   if (auth.user) {
-    const role = String(auth.user?.role || "").toLowerCase();
-    return <Redirect href={role === "vendor" ? "/(vendors)" : "/(tabs)"} />;
+    return <Redirect href={getAuthenticatedRoute(auth.user) as any} />;
   }
 
   return (
