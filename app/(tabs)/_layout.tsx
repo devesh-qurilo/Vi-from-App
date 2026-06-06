@@ -10,7 +10,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { moderateScale, normalizeFont, scale } from "../Responsive";
 
 export default function TabLayout() {
-  const API_BASE = "https://vi-farm-backend.onrender.com";
+  const API_BASE = "https://w7xqb95q-5000.inc1.devtunnels.ms";
   const [cartCount, setCartCount] = useState(0);
 
   const colorScheme = useColorScheme();

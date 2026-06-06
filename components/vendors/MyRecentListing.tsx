@@ -18,7 +18,7 @@ import {
 } from "react-native";
 import ProductModal from "../../components/vendors/ProductEditModel";
 
-const API_BASE = "https://vi-farm-backend.onrender.com";
+const API_BASE = "https://w7xqb95q-5000.inc1.devtunnels.ms";
 const { width } = Dimensions.get("window");
 const PLACEHOLDER_IMAGE =
   "https://via.placeholder.com/300x300.png?text=No+Image";

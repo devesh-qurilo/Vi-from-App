@@ -46,7 +46,7 @@ const MyOrdersScreen = () => {
   const navigation = useNavigation();
 
   // API Configuration
-  const API_BASE = "https://vi-farm-backend.onrender.com";
+  const API_BASE = "https://w7xqb95q-5000.inc1.devtunnels.ms";
   const API_ENDPOINT = `${API_BASE}/api/buyer/orders`;
 
   // Get status display text

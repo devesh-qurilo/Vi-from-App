@@ -18,7 +18,7 @@ const SCREEN_PADDING = 10;
 const ITEM_GAP = 10;
 const VISIBLE_ITEM_WIDTH = width - 2 * SCREEN_PADDING;
 
-const BASE_URL = "https://vi-farm-backend.onrender.com";
+const BASE_URL = "https://w7xqb95q-5000.inc1.devtunnels.ms";
 const ENDPOINT =
   "/api/admin/public/manage-app/banners/placement/HomePageSlider";
 

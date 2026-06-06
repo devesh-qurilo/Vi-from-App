@@ -21,7 +21,7 @@ import {
   View,
 } from "react-native";
 
-const API_HOST = "https://vi-farm-backend.onrender.com";
+const API_HOST = "https://w7xqb95q-5000.inc1.devtunnels.ms";
 const CATEGORY_API = "/api/admin/manage-app/categories";
 const VARIETY_API = "/api/admin/variety";
 const ADD_PRODUCT_API = "/api/vendor/products/add";

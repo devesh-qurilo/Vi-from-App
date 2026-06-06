@@ -22,7 +22,7 @@ const API_BASE =
   process.env &&
   process.env.REACT_APP_API_BASE
     ? process.env.REACT_APP_API_BASE
-    : "https://vi-farm-backend.onrender.com";
+    : "https://w7xqb95q-5000.inc1.devtunnels.ms";
 
 const VendorProfileViewDetails = () => {
   const navigation = useNavigation();

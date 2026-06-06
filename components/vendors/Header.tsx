@@ -19,7 +19,7 @@ import {
   View,
 } from "react-native";
 
-const API_BASE = "https://vi-farm-backend.onrender.com";
+const API_BASE = "https://w7xqb95q-5000.inc1.devtunnels.ms";
 const reverseGeocodeLocation = async (latitude, longitude) => {
   try {
     const response = await axios.get(
@@ -399,8 +399,14 @@ const EditLocationModal = ({ visible, onClose, initialData, onSubmit }) => {
 };
 
 // ============ Header Component ============
+interface AddressData {
+  city?: string;
+  locality?: string;
+  pinCode?: string;
+}
+
 const Header = () => {
-  const [address, setAddress] = useState({});
+  const [address, setAddress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const navigation = useNavigation();
@@ -424,8 +430,11 @@ const Header = () => {
           timeout: 15000,
         },
       );
-      const address = response?.data?.data?.address;
-      setAddress(address);
+      const addressData = response?.data?.data?.address ?? {};
+
+      console.log("Vendor Address:", addressData);
+
+      setAddress(addressData);
     } catch (error) {
       console.error("Address fetch error:", error);
     } finally {
@@ -474,7 +483,7 @@ const Header = () => {
           </View>
           <Text style={styles.subText} allowFontScaling={false}>
             {address?.locality
-              ? `${address.city}, ${address.pinCode}`
+              ? `${address?.city || ""}, ${address?.pinCode || ""}`
               : "Tap to add location"}
           </Text>
         </TouchableOpacity>

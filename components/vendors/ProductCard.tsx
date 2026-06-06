@@ -23,7 +23,7 @@ import {
 } from "react-native";
 import ProductModal from "../vendors/ProductEditModel";
 
-const API_BASE = "https://vi-farm-backend.onrender.com";
+const API_BASE = "https://w7xqb95q-5000.inc1.devtunnels.ms";
 const { width } = Dimensions.get("window");
 
 // --- ProductCard Component with Edit Modal ---

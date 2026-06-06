@@ -19,7 +19,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { moderateScale, normalizeFont, scale } from "../Responsive";
 
-const FORGET_API_BASE = "https://vi-farm-backend.onrender.com";
+const FORGET_API_BASE = "https://w7xqb95q-5000.inc1.devtunnels.ms";
 
 type RootStackParamList = {
   forgetOtpVerify: {

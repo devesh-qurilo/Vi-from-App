@@ -9,8 +9,8 @@
 //   const [loading, setLoading] = useState(true);
 //   const [address, setAddress] = useState([])
 
-//   const API_BASE = 'https://vi-farm-backend.onrender.com/api/auth';
-//   const API_BUYER_BASE = 'https://vi-farm-backend.onrender.com/api/buyer';
+//   const API_BASE = 'https://w7xqb95q-5000.inc1.devtunnels.ms/api/auth';
+//   const API_BUYER_BASE = 'https://w7xqb95q-5000.inc1.devtunnels.ms/api/buyer';
 
 //   useEffect(() => {
 //     const loadUser = async () => {
@@ -270,9 +270,9 @@ function AuthProviderComponent({ children }) {
   const [loading, setLoading] = useState(true);
   const [address, setAddress] = useState(null); // keep single default address or null
 
-  const API_BASE = "https://vi-farm-backend.onrender.com/api/auth";
-  const API_BUYER_BASE = "https://vi-farm-backend.onrender.com/api/buyer";
-  const API_ROOT = "https://vi-farm-backend.onrender.com/api";
+  const API_BASE = "https://w7xqb95q-5000.inc1.devtunnels.ms/api/auth";
+  const API_BUYER_BASE = "https://w7xqb95q-5000.inc1.devtunnels.ms/api/buyer";
+  const API_ROOT = "https://w7xqb95q-5000.inc1.devtunnels.ms/api";
 
   // LOAD USER ON APP START
   useEffect(() => {
@@ -514,29 +514,29 @@ function AuthProviderComponent({ children }) {
           setUser(returnedUser);
 
           // REGISTER PUSH TOKEN (best-effort)
-          try {
-            const expoPushToken = await registerForPushNotificationsAsync();
-            if (expoPushToken) {
-              await AsyncStorage.setItem("expoPushToken", expoPushToken);
-              try {
-                await axios.post(
-                  `${API_ROOT}/push-tokens`,
-                  { token: expoPushToken, platform: Platform.OS },
-                  { headers: { Authorization: `Bearer ${token}` } },
-                );
-              } catch (err) {
-                console.warn(
-                  "Failed to send push-token to server after login:",
-                  err?.message || err,
-                );
-              }
-            }
-          } catch (err) {
-            console.warn(
-              "registerForPushNotificationsAsync failed after login:",
-              err?.message || err,
-            );
-          }
+          // try {
+          //   const expoPushToken = await registerForPushNotificationsAsync();
+          //   if (expoPushToken) {
+          //     await AsyncStorage.setItem("expoPushToken", expoPushToken);
+          //     try {
+          //       await axios.post(
+          //         `${API_ROOT}/push-tokens`,
+          //         { token: expoPushToken, platform: Platform.OS },
+          //         { headers: { Authorization: `Bearer ${token}` } },
+          //       );
+          //     } catch (err) {
+          //       console.warn(
+          //         "Failed to send push-token to server after login:",
+          //         err?.message || err,
+          //       );
+          //     }
+          //   }
+          // } catch (err) {
+          //   console.warn(
+          //     "registerForPushNotificationsAsync failed after login:",
+          //     err?.message || err,
+          //   );
+          // }
 
           // If buyer, fetch profile & address safely (no uncaught rejections)
           if (returnedUser.role === "buyer") {
@@ -562,9 +562,12 @@ function AuthProviderComponent({ children }) {
   };
 
   // NEW PASSWORD
-  const newPassword = async (password, confirmPassword) => {
+  const newPassword = async (mobileNumber, password, confirmPassword) => {
+    console.log(mobileNumber, password, confirmPassword);
+
     try {
-      const res = await axios.post(`${API_BASE}/password`, {
+      const res = await axios.post(`${API_BASE}/set-password`, {
+        mobileNumber,
         password,
         confirmPassword,
       });

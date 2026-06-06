@@ -22,7 +22,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { moderateScale, normalizeFont, scale } from "./Responsive";
 
-const API = "https://vi-farm-backend.onrender.com";
+const API = "https://w7xqb95q-5000.inc1.devtunnels.ms";
 const COORDS = "?buyerLat=28.70&buyerLng=77.22";
 const CARD_COLUMNS = 2;
 const CARD_MARGIN = 10;
@@ -1857,7 +1857,7 @@ export default VendorsDetails;
 // import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // import { moderateScale, normalizeFont, scale } from './Responsive';
 
-// const API = 'https://vi-farm-backend.onrender.com';
+// const API = 'https://w7xqb95q-5000.inc1.devtunnels.ms';
 // const COORDS = '?buyerLat=28.70&buyerLng=77.22';
 // const CARD_COLUMNS = 2;
 // const CARD_MARGIN = 10;

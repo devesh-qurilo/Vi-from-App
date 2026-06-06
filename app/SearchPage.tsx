@@ -39,7 +39,7 @@ const normalizeFont = (size) => {
   }
 };
 
-const API_BASE_URL = "https://vi-farm-backend.onrender.com";
+const API_BASE_URL = "https://w7xqb95q-5000.inc1.devtunnels.ms";
 
 const SearchPage = () => {
   const navigation = useNavigation();

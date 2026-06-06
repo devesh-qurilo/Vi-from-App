@@ -19,7 +19,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 // ---------- CONFIG ----------
-const BASE_URL = "https://vi-farm-backend.onrender.com";
+const BASE_URL = "https://w7xqb95q-5000.inc1.devtunnels.ms";
 const moderateScale = (v) => Math.round(v);
 const scale = (v) => Math.round(v);
 const normalizeFont = (v) => Math.round(v);
