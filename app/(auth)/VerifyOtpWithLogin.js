@@ -29,7 +29,7 @@ const VerifyOtpWithLogin = () => {
   const [timer, setTimer] = useState(60);
   const router = useRouter();
   const route = useRoute();
-  const mobileNumber = route.params?.mobileNumber || "";
+  const mobileNumber = String(route.params?.mobileNumber || "").trim();
   const otpInputs = useRef([]);
 
   // Timer for resend OTP
@@ -44,6 +44,8 @@ const VerifyOtpWithLogin = () => {
   }, [timer]);
 
   const handleOtpChange = (value, index) => {
+    if (loading) return;
+
     // accept only digits
     const digit = value.replace(/[^0-9]/g, "").slice(-1);
     const newOtp = [...otp];
@@ -54,10 +56,10 @@ const VerifyOtpWithLogin = () => {
       otpInputs.current[index + 1]?.focus();
     }
 
-    if (digit && index === 3) {
+    if (digit && index === 3 && newOtp.every(Boolean)) {
       // small timeout to ensure state updated before verify
       setTimeout(() => {
-        handleVerifyOtp();
+        handleVerifyOtp(newOtp.join(""));
       }, 150);
     }
   };
@@ -73,7 +75,6 @@ const VerifyOtpWithLogin = () => {
     try {
       await AsyncStorage.setItem("userToken", token);
       await AsyncStorage.setItem("userData", JSON.stringify(userData));
-      console.log("Token saved successfully");
       return true;
     } catch (error) {
       console.error("Error saving token:", error);
@@ -81,11 +82,33 @@ const VerifyOtpWithLogin = () => {
     }
   };
 
-  const handleVerifyOtp = async () => {
-    const otpString = otp.join("");
+  const parseJsonResponse = async (response) => {
+    const responseText = await response.text();
+
+    if (!responseText || responseText.trim() === "") {
+      return {};
+    }
+
+    try {
+      return JSON.parse(responseText);
+    } catch (parseError) {
+      console.error("JSON Parse Error:", parseError);
+      throw new Error("Invalid response from server");
+    }
+  };
+
+  const handleVerifyOtp = async (otpValue) => {
+    if (loading) return;
+
+    const otpString = otpValue || otp.join("");
 
     if (otpString.length !== 4) {
       Alert.alert("Error", "Please enter the complete 4-digit OTP");
+      return;
+    }
+
+    if (!mobileNumber) {
+      Alert.alert("Error", "Mobile number is missing. Please try again.");
       return;
     }
 
@@ -107,47 +130,33 @@ const VerifyOtpWithLogin = () => {
       });
 
       clearTimeout(timeoutId);
-      const responseText = await response.text();
-      let data = {};
+      const data = await parseJsonResponse(response);
+      const token = data?.data?.token;
+      const user = data?.data?.user;
+      const message = data?.message || "Login successful";
 
-      if (responseText && responseText.trim() !== "") {
-        try {
-          data = JSON.parse(responseText);
-        } catch (parseError) {
-          console.error("JSON Parse Error:", parseError);
-          Alert.alert("Error", "Invalid response from server");
-          return;
-        }
-      }
+      if (response.ok && data?.status === "success" && token && user) {
+        const tokenSaved = await saveTokenToStorage(token, user);
 
-      if (response.ok) {
-        if (data.status === "success") {
-          const tokenSaved = await saveTokenToStorage(
-            data.data.token,
-            data.data.user,
-          );
-
-          if (tokenSaved) {
-            Alert.alert("Success", data.message || "Login successful", [
-              {
-                text: "OK",
-                onPress: () => {
-                  router.replace(getAuthenticatedRoute(data.data.user));
-                },
+        if (tokenSaved) {
+          Alert.alert("Success", message, [
+            {
+              text: "OK",
+              onPress: () => {
+                router.replace(getAuthenticatedRoute(user));
               },
-            ]);
-          } else {
-            Alert.alert("Error", "Failed to save login data");
-          }
+            },
+          ]);
         } else {
-          Alert.alert("Error", data.message || "OTP verification failed");
+          Alert.alert("Error", "Failed to save login data");
         }
-      } else {
-        Alert.alert(
-          "Error",
-          data.message || `OTP verification failed. Status: ${response.status}`,
-        );
+        return;
       }
+
+      Alert.alert(
+        "Error",
+        data?.message || `OTP verification failed. Status: ${response.status}`,
+      );
     } catch (error) {
       console.error("OTP verification error:", error);
 
@@ -182,30 +191,18 @@ const VerifyOtpWithLogin = () => {
       });
 
       clearTimeout(timeoutId);
-
-      const responseText = await response.text();
-      let data = {};
-
-      if (responseText && responseText.trim() !== "") {
-        try {
-          data = JSON.parse(responseText);
-        } catch (parseError) {
-          console.error("JSON Parse Error:", parseError);
-        }
-      }
+      const data = await parseJsonResponse(response);
 
       if (response.ok) {
         Alert.alert(
           "Success",
-          data.message || "OTP has been resent to your mobile number",
+          data?.message || "OTP has been resent to your mobile number",
         );
         setTimer(60);
         setOtp(["", "", "", ""]);
-        if (otpInputs.current[0]) {
-          otpInputs.current[0].focus();
-        }
+        otpInputs.current[0]?.focus();
       } else {
-        Alert.alert("Error", data.message || "Failed to resend OTP");
+        Alert.alert("Error", data?.message || "Failed to resend OTP");
       }
     } catch (error) {
       console.error("Resend OTP error:", error);
@@ -261,6 +258,11 @@ const VerifyOtpWithLogin = () => {
                     maxLength={1}
                     ref={(ref) => (otpInputs.current[index] = ref)}
                     selectTextOnFocus
+                    autoFocus={index === 0}
+                    returnKeyType={index === 3 ? "done" : "next"}
+                    textContentType="oneTimeCode"
+                    importantForAutofill="yes"
+                    editable={!loading}
                   />
                 ))}
               </View>
@@ -300,7 +302,7 @@ const VerifyOtpWithLogin = () => {
 
               <TouchableOpacity
                 style={styles.backButton}
-                onPress={() => navigation.goBack()}
+                onPress={() => router.back()}
               >
                 <Text allowFontScaling={false} style={styles.backButtonText}>
                   Change Mobile Number

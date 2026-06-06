@@ -1,12 +1,34 @@
 import { Redirect } from "expo-router";
-import React, { useContext } from "react";
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useCallback, useContext } from "react";
+import {
+  ActivityIndicator,
+  BackHandler,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthContext } from "./context/AuthContext";
 import { getAuthenticatedRoute, getVendorStatus } from "./utility/authRouting";
 
 export default function VendorPendingScreen() {
   const auth = useContext(AuthContext);
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => true;
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress,
+      );
+
+      return () => {
+        subscription.remove();
+      };
+    }, []),
+  );
 
   if (!auth || auth.loading) {
     return (
