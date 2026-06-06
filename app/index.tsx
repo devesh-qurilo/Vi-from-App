@@ -1,40 +1,37 @@
-import { useRouter } from 'expo-router';
-import React, { useContext, useEffect } from 'react';
-import { ActivityIndicator, Button, StyleSheet, Text, View } from 'react-native';
-import { AuthContext } from './context/AuthContext';
+import { Redirect } from "expo-router";
+import React, { useContext } from "react";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { AuthContext } from "./context/AuthContext";
 
 export default function HomeScreen() {
-  const { user, loading, logout } = useContext(AuthContext);
-  const router = useRouter();
+  const auth = useContext(AuthContext);
 
-  useEffect(() => {
-    if (!loading && !user) router.replace('/(auth)/login');
-  }, [loading, user]);
-
-  if (loading || !user) {
+  if (!auth || auth.loading) {
     return (
-      <ActivityIndicator
-        size="large"
-        style={{ flex: 1, backgroundColor: 'red' }}
-      />
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color="#4CAF50" />
+      </View>
     );
   }
 
-  return (
-    <View
-      style={styles.container}
-    >
-      <Text  allowFontScaling={false}>Welcome, {user.name}</Text>
-      <Button  title="Logout" onPress={logout} />
-    </View>
-  );
+  if (!auth.user) {
+    return <Redirect href="/(auth)/login" />;
+  }
+
+  const role = String(auth.user?.role || "").toLowerCase();
+
+  if (role === "vendor") {
+    return <Redirect href="/(vendors)" />;
+  }
+
+  return <Redirect href="/(tabs)" />;
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,                
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    padding:20,  
+  loader: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff",
   },
 });
