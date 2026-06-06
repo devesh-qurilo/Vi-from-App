@@ -20,7 +20,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import ProductModal from "../components/vendors/ProductEditModel";
 const { width, height } = Dimensions.get("window");
 
-const API_BASE = "https://w7xqb95q-5000.inc1.devtunnels.ms";
+const API_BASE = "https://vi-farm-backend.onrender.com";
 
 const clampPos = (x, y, w = width, h = height) => {
   // ensure popup stays inside screen with small margin

@@ -251,7 +251,6 @@
 //   },
 // });
 
-
 // app/screens/LoginScreen.jsx
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "expo-router";
@@ -268,17 +267,23 @@ import {
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  View
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthContext } from "../context/AuthContext";
-import { isIOS, moderateScale, normalizeFont, scale, verticalScale } from "../Responsive";
+import {
+  isIOS,
+  moderateScale,
+  normalizeFont,
+  scale,
+  verticalScale,
+} from "../Responsive";
 import { saveToken } from "../utility/Storage";
 
 export default function LoginScreen() {
   const navigation = useNavigation();
   const [mobile, setMobile] = useState("7777777777");
-  const [password, setPassword] = useState("123456789");
+  const [password, setPassword] = useState("12345678");
   const { login } = useContext(AuthContext);
 
   const handleLogin = async () => {
@@ -322,7 +327,7 @@ export default function LoginScreen() {
       console.error("Login error:", err);
       Alert.alert(
         "Error",
-        err?.response?.data?.message || "Something went wrong, try again later"
+        err?.response?.data?.message || "Something went wrong, try again later",
       );
     }
   };
@@ -345,18 +350,21 @@ export default function LoginScreen() {
             keyboardShouldPersistTaps="handled"
             bounces={false}
           >
-
             <Image
               style={styles.logoImage}
               source={require("../../assets/via-farm-img/icons/logo.png")}
             />
 
             <View style={styles.card}>
-              <Text allowFontScaling={false} style={styles.heading}>Welcome to Viafarm!</Text>
+              <Text allowFontScaling={false} style={styles.heading}>
+                Welcome to Viafarm!
+              </Text>
 
               {/* Mobile Number Field */}
               <View style={styles.inputContainer}>
-                <Text allowFontScaling={false} style={styles.label}>Mobile Number</Text>
+                <Text allowFontScaling={false} style={styles.label}>
+                  Mobile Number
+                </Text>
                 <TextInput
                   keyboardType="numeric"
                   value={mobile}
@@ -372,7 +380,9 @@ export default function LoginScreen() {
 
               {/* Password Field */}
               <View style={styles.inputContainer}>
-                <Text allowFontScaling={false} style={styles.label}>Password</Text>
+                <Text allowFontScaling={false} style={styles.label}>
+                  Password
+                </Text>
                 <TextInput
                   secureTextEntry
                   value={password}
@@ -385,8 +395,13 @@ export default function LoginScreen() {
                 />
               </View>
 
-              <TouchableOpacity style={styles.forgotWrapper} onPress={ForgetPassword}>
-                <Text allowFontScaling={false} style={styles.forgotText}>Forgot password ?</Text>
+              <TouchableOpacity
+                style={styles.forgotWrapper}
+                onPress={ForgetPassword}
+              >
+                <Text allowFontScaling={false} style={styles.forgotText}>
+                  Forgot password ?
+                </Text>
               </TouchableOpacity>
 
               {/* Login Button */}
@@ -395,21 +410,37 @@ export default function LoginScreen() {
                 onPress={handleLogin}
                 activeOpacity={0.85}
               >
-                <Ionicons name="log-in-outline" size={moderateScale(18)} color="#fff" />
-                <Text allowFontScaling={false} style={styles.loginText}>Login</Text>
+                <Ionicons
+                  name="log-in-outline"
+                  size={moderateScale(18)}
+                  color="#fff"
+                />
+                <Text allowFontScaling={false} style={styles.loginText}>
+                  Login
+                </Text>
               </TouchableOpacity>
 
               {/* Login with OTP */}
-              <TouchableOpacity style={styles.otpBtn} onPress={handleOtpLogin} activeOpacity={0.85}>
+              <TouchableOpacity
+                style={styles.otpBtn}
+                onPress={handleOtpLogin}
+                activeOpacity={0.85}
+              >
                 {/* <Ionicons name="key-outline" size={moderateScale(16)} color="rgba(76,175,80,1)" /> */}
-                <Text allowFontScaling={false} style={styles.otpText}>Login with OTP</Text>
+                <Text allowFontScaling={false} style={styles.otpText}>
+                  Login with OTP
+                </Text>
               </TouchableOpacity>
 
               {/* SignUp */}
               <View style={styles.signupWrapper}>
-                <Text allowFontScaling={false} style={styles.signupText}>Don't have an account? </Text>
+                <Text allowFontScaling={false} style={styles.signupText}>
+                  Don't have an account?{" "}
+                </Text>
                 <TouchableOpacity onPress={registerNew}>
-                  <Text allowFontScaling={false} style={styles.signupLink}>Sign Up</Text>
+                  <Text allowFontScaling={false} style={styles.signupLink}>
+                    Sign Up
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -424,7 +455,10 @@ export default function LoginScreen() {
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const HORIZONTAL_MARGIN = moderateScale(18);
 const MAX_CARD_WIDTH = scale(420);
-const CARD_WIDTH = Math.min(Math.max(SCREEN_WIDTH - HORIZONTAL_MARGIN * 2, scale(320)), MAX_CARD_WIDTH);
+const CARD_WIDTH = Math.min(
+  Math.max(SCREEN_WIDTH - HORIZONTAL_MARGIN * 2, scale(320)),
+  MAX_CARD_WIDTH,
+);
 
 /* ---------- styles ---------- */
 const styles = StyleSheet.create({
@@ -449,7 +483,7 @@ const styles = StyleSheet.create({
     marginBottom: verticalScale(-10),
   },
   card: {
-    width: '100%',
+    width: "100%",
     minHeight: verticalScale(420),
     backgroundColor: "#fff",
     borderRadius: moderateScale(16),
@@ -492,7 +526,6 @@ const styles = StyleSheet.create({
     color: "#222",
   },
 
-  
   forgotWrapper: {
     width: "100%",
     alignItems: "flex-start",
@@ -526,7 +559,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     width: "68%",
-    marginTop:moderateScale(6),
+    marginTop: moderateScale(6),
     alignSelf: "center",
     paddingVertical: moderateScale(15),
     borderRadius: moderateScale(10),

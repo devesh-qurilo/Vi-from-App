@@ -35,7 +35,7 @@ const normalizeFont = (size) => {
   }
 };
 
-const BASE_URL = "https://w7xqb95q-5000.inc1.devtunnels.ms";
+const BASE_URL = "https://vi-farm-backend.onrender.com";
 const NOTIFICATIONS_ENDPOINT = "/api/notifications";
 
 /* ---------------- NotificationCard ---------------- */

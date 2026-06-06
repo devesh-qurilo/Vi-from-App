@@ -13,7 +13,7 @@ import {
 
 import { moderateScale, normalizeFont, scale } from "@/app/Responsive";
 
-const API_BASE = "https://w7xqb95q-5000.inc1.devtunnels.ms";
+const API_BASE = "https://vi-farm-backend.onrender.com";
 
 const CategoryCard = () => {
   const [categories, setCategories] = useState<

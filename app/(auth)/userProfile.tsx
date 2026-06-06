@@ -15,7 +15,7 @@
 // } from 'react-native';
 
 // // Define your API base URL
-// const API_BASE = 'https://w7xqb95q-5000.inc1.devtunnels.msapi/auth';
+// const API_BASE = 'https://vi-farm-backend.onrender.comapi/auth';
 
 // interface ProfileData {
 //   name: string;
