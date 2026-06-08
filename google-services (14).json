@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "53194312263",
+    "project_id": "viafarm-c3b2e",
+    "storage_bucket": "viafarm-c3b2e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:53194312263:android:dfaa4c1d40ddd4c390ff62",
+        "android_client_info": {
+          "package_name": "com.viafarm.android"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAIwE5iB_lfQaF02WSKcjkQrpTbYNz7aDU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

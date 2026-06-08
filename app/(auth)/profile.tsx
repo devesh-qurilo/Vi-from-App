@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useContext, useState } from 'react';
 import {
@@ -87,6 +88,15 @@ export default function ProfileScreen() {
             {/* CARD */}
             <View style={styles.card}>
               <View style={styles.cardContent}>
+                <View style={styles.avatarWrap}>
+                  <View style={styles.avatarCircle}>
+                    <Ionicons
+                      name="person"
+                      size={scale(42)}
+                      color="rgba(76, 175, 80, 1)"
+                    />
+                  </View>
+                </View>
                 <Text allowFontScaling={false} style={styles.title}>Complete Your Profile</Text>
                 <Text allowFontScaling={false} style={styles.subtitle}>Just one more step to get started</Text>
 
@@ -113,6 +123,7 @@ export default function ProfileScreen() {
                         style={[styles.roleButton, role === 'Buyer' && styles.roleButtonActive]}
                         onPress={() => setRole('Buyer')}
                         disabled={loading}
+                        activeOpacity={0.85}
                       >
                         <Text allowFontScaling={false} style={[styles.roleText, role === 'Buyer' && styles.roleTextActive]}>
                           Buyer
@@ -123,6 +134,7 @@ export default function ProfileScreen() {
                         style={[styles.roleButton, role === 'Vendor' && styles.roleButtonActive]}
                         onPress={() => setRole('Vendor')}
                         disabled={loading}
+                        activeOpacity={0.85}
                       >
                         <Text allowFontScaling={false} style={[styles.roleText, role === 'Vendor' && styles.roleTextActive]}>
                           Vendor
@@ -202,6 +214,25 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
   },
+  avatarWrap: {
+    marginTop: moderateScale(-58),
+    marginBottom: moderateScale(12),
+  },
+  avatarCircle: {
+    width: scale(92),
+    height: scale(92),
+    borderRadius: scale(46),
+    backgroundColor: '#F4FAF4',
+    borderWidth: 2,
+    borderColor: 'rgba(76, 175, 80, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+  },
   title: {
     fontSize: normalizeFont(15),
     fontWeight: '700',
@@ -251,12 +282,15 @@ const styles = StyleSheet.create({
   },
   roleButton: {
     flex: 1,
+    minHeight: moderateScale(58),
     backgroundColor: '#fff',
     borderWidth: 2,
     borderColor: '#e0e0e0',
     borderRadius: moderateScale(12),
     paddingVertical: moderateScale(16),
+    paddingHorizontal: moderateScale(10),
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -290,9 +324,11 @@ const styles = StyleSheet.create({
   completeButton: {
     backgroundColor: 'rgba(76, 175, 80, 1)',
     borderRadius: moderateScale(12),
+    minHeight: moderateScale(54),
     paddingVertical: moderateScale(16),
     width: '70%',
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#007AFF',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,

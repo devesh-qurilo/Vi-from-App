@@ -992,6 +992,14 @@ const VendorProfile = () => {
     }));
   };
 
+  const ratingText = userInfo?.rating ? String(userInfo.rating) : "New";
+  const statusText = userInfo?.status || "Active";
+  const primaryAddress =
+    userInfo?.address?.locality ||
+    userInfo?.address?.city ||
+    userInfo?.address?.district ||
+    "Set your business location";
+
   const ProfileMenuItem = ({ icon, title, subtitle, onPress }) => (
     <TouchableOpacity
       style={styles.menuItem}
@@ -1030,99 +1038,125 @@ const VendorProfile = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.profile}>
-        <TouchableOpacity onPress={goBack}>
-          <Image
-            source={require("../../assets/via-farm-img/icons/groupArrow.png")}
-            style={{ width: scale(32), height: scale(32) }}
+        <TouchableOpacity onPress={goBack} style={styles.headerBackButton}>
+          <Ionicons
+            name="chevron-back"
+            size={moderateScale(22)}
+            color="#183153"
           />
         </TouchableOpacity>
-        <Text
-          allowFontScaling={false}
-          style={{ fontWeight: "700", fontSize: normalizeFont(13) }}
-        >
+        <Text allowFontScaling={false} style={styles.headerTitle}>
           My Profile
         </Text>
-        <Text />
+        <View style={styles.headerSpacer} />
       </View>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity
-          style={styles.profileSection}
-          onPress={() =>
-            navigation.navigate("VendorProfileView", { user: fullUser })
-          }
-        >
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.heroCard}>
           <TouchableOpacity
-            style={{
-              position: "absolute",
-              right: moderateScale(11),
-              top: moderateScale(10),
-              borderWidth: 1,
-              borderColor: "rgba(0, 0, 0, 0.2)",
-              paddingHorizontal: moderateScale(6),
-              borderRadius: moderateScale(5),
-              flexDirection: "row",
-              alignItems: "center",
-              gap: moderateScale(5),
-              paddingVertical: moderateScale(1),
-            }}
+            style={styles.profileSection}
+            activeOpacity={0.9}
             onPress={() =>
               navigation.navigate("VendorProfileView", { user: fullUser })
             }
           >
-            <Image
-              source={require("../../assets/via-farm-img/icons/satar.png")}
+          <TouchableOpacity
+            style={styles.ratingBadge}
+            onPress={() =>
+              navigation.navigate("VendorProfileView", { user: fullUser })
+            }
+          >
+            <Ionicons
+              name="star"
+              size={moderateScale(14)}
+              color="#F59E0B"
             />
-            <Text
-              allowFontScaling={false}
-              style={{ fontSize: normalizeFont(10) }}
-            >
-              {userInfo?.rating}
+            <Text allowFontScaling={false} style={styles.ratingText}>
+              {ratingText}
             </Text>
           </TouchableOpacity>
 
           <View style={styles.profileInfo}>
-            <TouchableOpacity style={styles.avatarContainer}>
+            <TouchableOpacity style={styles.avatarContainer} activeOpacity={0.85}>
               {userInfo?.image ? (
                 <Image
                   source={{ uri: userInfo.image }}
                   style={styles.avatarImage}
                 />
               ) : (
-                <Text allowFontScaling={false} style={styles.avatarText}>
-                  {getAvatarLetter(userInfo?.name)}
-                </Text>
+                <View style={styles.avatarFallback}>
+                  <Text allowFontScaling={false} style={styles.avatarText}>
+                    {getAvatarLetter(userInfo?.name)}
+                  </Text>
+                </View>
               )}
             </TouchableOpacity>
             <View style={styles.userInfo}>
               <Text allowFontScaling={false} style={styles.userName}>
-                {userInfo?.name}
+                {userInfo?.name || "Vendor Name"}
               </Text>
               <Text allowFontScaling={false} style={styles.userPhone}>
-                +91 {userInfo?.phone}
+                +91 {userInfo?.phone || "Not added"}
               </Text>
               <Text allowFontScaling={false} style={styles.userPhone}>
-                {userInfo?.upiId}
+                {userInfo?.upiId || "Add your UPI ID"}
               </Text>
-              <Text allowFontScaling={false} style={styles.userRole}>
-                {userInfo?.status}
-              </Text>
+              <View style={styles.metaRow}>
+                <View style={styles.statusPill}>
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={moderateScale(14)}
+                    color="#1F8A4C"
+                  />
+                  <Text allowFontScaling={false} style={styles.statusPillText}>
+                    {statusText}
+                  </Text>
+                </View>
+                <View style={styles.locationPill}>
+                  <Ionicons
+                    name="location-outline"
+                    size={moderateScale(14)}
+                    color="#183153"
+                  />
+                  <Text
+                    allowFontScaling={false}
+                    numberOfLines={1}
+                    style={styles.locationPillText}
+                  >
+                    {primaryAddress}
+                  </Text>
+                </View>
+              </View>
             </View>
-            <View />
           </View>
           <TouchableOpacity
             style={styles.editButtonContainer}
             onPress={() => setEditProfileModalVisible(true)}
+            activeOpacity={0.85}
           >
-            <Image
-              source={require("../../assets/via-farm-img/icons/editicon.png")}
-              style={{
-                width: scale(18),
-                height: scale(18),
-                tintColor: "#0197DA",
-              }}
+            <Ionicons
+              name="create-outline"
+              size={moderateScale(16)}
+              color="#0E7490"
             />
+            <Text allowFontScaling={false} style={styles.editButtonText}>
+              Edit
+            </Text>
           </TouchableOpacity>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.sectionHeaderWrap}>
+          <Text allowFontScaling={false} style={styles.sectionEyebrow}>
+            Account
+          </Text>
+          <Text allowFontScaling={false} style={styles.sectionHeaderTitle}>
+            Manage your business settings
+          </Text>
+        </View>
 
         <View style={styles.menuSection}>
           <ProfileMenuItem
@@ -1216,93 +1250,216 @@ export default VendorProfile;
 
 // ---------------- Styles ----------------
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#fff" },
-  container: { flex: 1, backgroundColor: "#fff" },
+  safeArea: { flex: 1, backgroundColor: "#F6F6F0" },
+  container: { flex: 1, backgroundColor: "#F6F6F0" },
+  scrollContent: {
+    paddingBottom: moderateScale(28),
+  },
 
   profile: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: moderateScale(22),
-    paddingVertical: moderateScale(5),
-    marginTop: moderateScale(5),
+    paddingVertical: moderateScale(10),
+    marginTop: moderateScale(2),
+    backgroundColor: "#F6F6F0",
+  },
+  headerBackButton: {
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(20),
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(24, 49, 83, 0.08)",
+  },
+  headerTitle: {
+    fontWeight: "800",
+    fontSize: normalizeFont(15),
+    color: "#183153",
+  },
+  headerSpacer: {
+    width: moderateScale(40),
+  },
+  heroCard: {
+    marginHorizontal: scale(16),
+    marginTop: moderateScale(6),
+    backgroundColor: "#DFF3E4",
+    borderRadius: moderateScale(24),
+    padding: moderateScale(10),
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: moderateScale(6) },
+    shadowOpacity: 0.06,
+    shadowRadius: moderateScale(12),
+    elevation: 3,
   },
 
   profileSection: {
-    backgroundColor: "#fff",
-    marginHorizontal: scale(16),
-    marginTop: moderateScale(10),
-    marginBottom: moderateScale(10),
-    borderRadius: moderateScale(12),
-    borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.1)",
+    backgroundColor: "#fffef8",
+    borderRadius: moderateScale(20),
     padding: moderateScale(20),
-    elevation: moderateScale(2),
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: moderateScale(1) },
-    shadowOpacity: 0.1,
-    shadowRadius: moderateScale(2),
+    borderWidth: 1,
+    borderColor: "rgba(24, 49, 83, 0.08)",
   },
 
-  profileInfo: { flexDirection: "row", alignItems: "center" },
+  ratingBadge: {
+    position: "absolute",
+    right: moderateScale(16),
+    top: moderateScale(14),
+    backgroundColor: "#FFFFFF",
+    borderRadius: moderateScale(999),
+    borderWidth: 1,
+    borderColor: "rgba(245, 158, 11, 0.3)",
+    paddingHorizontal: moderateScale(10),
+    paddingVertical: moderateScale(6),
+    flexDirection: "row",
+    alignItems: "center",
+    gap: moderateScale(6),
+    zIndex: 2,
+  },
+  ratingText: {
+    color: "#7C4A03",
+    fontSize: normalizeFont(11),
+    fontWeight: "700",
+  },
+
+  profileInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingRight: moderateScale(80),
+  },
 
   avatarContainer: {
-    width: moderateScale(60),
-    height: moderateScale(60),
-    borderRadius: moderateScale(30),
-    backgroundColor: "#FFB4A2",
+    width: moderateScale(78),
+    height: moderateScale(78),
+    borderRadius: moderateScale(39),
+    backgroundColor: "#BEE3C6",
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
   },
   avatarImage: {
-    width: moderateScale(60),
-    height: moderateScale(60),
-    borderRadius: moderateScale(30),
+    width: moderateScale(78),
+    height: moderateScale(78),
+    borderRadius: moderateScale(39),
   },
-  avatarText: { fontSize: normalizeFont(24), fontWeight: "600", color: "#fff" },
+  avatarFallback: {
+    width: "100%",
+    height: "100%",
+    borderRadius: moderateScale(39),
+    backgroundColor: "#4CAF50",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: { fontSize: normalizeFont(28), fontWeight: "700", color: "#fff" },
 
-  userInfo: { flex: 1, marginLeft: moderateScale(15) },
+  userInfo: { flex: 1, marginLeft: moderateScale(16) },
   userName: {
-    fontSize: normalizeFont(13),
-    fontWeight: "600",
-    color: "#333",
-    paddingVertical: moderateScale(2),
+    fontSize: normalizeFont(16),
+    fontWeight: "700",
+    color: "#183153",
+    paddingVertical: moderateScale(1),
   },
   userPhone: {
-    fontSize: normalizeFont(11),
-    color: "#666",
-    paddingVertical: moderateScale(1),
+    fontSize: normalizeFont(11.5),
+    color: "#5E6472",
+    paddingVertical: moderateScale(1.5),
   },
-  userRole: {
+  metaRow: {
+    marginTop: moderateScale(8),
+    gap: moderateScale(8),
+  },
+  statusPill: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: moderateScale(6),
+    backgroundColor: "#E8F7EC",
+    paddingHorizontal: moderateScale(10),
+    paddingVertical: moderateScale(6),
+    borderRadius: moderateScale(999),
+  },
+  statusPillText: {
+    color: "#1F8A4C",
     fontSize: normalizeFont(11),
-    color: "#4CAF50",
-    fontWeight: "500",
-    marginTop: moderateScale(2),
-    paddingVertical: moderateScale(1),
+    fontWeight: "700",
+  },
+  locationPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: moderateScale(6),
+    backgroundColor: "#F5F7FA",
+    paddingHorizontal: moderateScale(10),
+    paddingVertical: moderateScale(7),
+    borderRadius: moderateScale(12),
+    maxWidth: "100%",
+  },
+  locationPillText: {
+    flex: 1,
+    color: "#435269",
+    fontSize: normalizeFont(10.5),
+    fontWeight: "600",
   },
 
   editButtonContainer: {
     position: "absolute",
-    bottom: moderateScale(10),
-    right: moderateScale(10),
+    right: moderateScale(16),
+    bottom: moderateScale(16),
+    borderRadius: moderateScale(999),
+    backgroundColor: "#E0F2FE",
+    paddingHorizontal: moderateScale(12),
+    paddingVertical: moderateScale(8),
+    flexDirection: "row",
+    alignItems: "center",
+    gap: moderateScale(6),
+  },
+  editButtonText: {
+    color: "#0E7490",
+    fontSize: normalizeFont(11.5),
+    fontWeight: "700",
+  },
+  sectionHeaderWrap: {
+    marginTop: moderateScale(18),
+    marginHorizontal: scale(18),
+    marginBottom: moderateScale(8),
+  },
+  sectionEyebrow: {
+    fontSize: normalizeFont(10.5),
+    fontWeight: "700",
+    color: "#4CAF50",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: moderateScale(4),
+  },
+  sectionHeaderTitle: {
+    fontSize: normalizeFont(16),
+    fontWeight: "700",
+    color: "#183153",
   },
 
   menuSection: {
     backgroundColor: "#fff",
     marginHorizontal: scale(14),
-    marginVertical: moderateScale(5),
-    borderRadius: moderateScale(11),
+    marginTop: moderateScale(4),
+    borderRadius: moderateScale(18),
     elevation: moderateScale(2),
     shadowColor: "#000",
     shadowOffset: { width: 0, height: moderateScale(1) },
+    shadowOpacity: 0.08,
+    shadowRadius: moderateScale(6),
+    borderWidth: 1,
+    borderColor: "rgba(24, 49, 83, 0.06)",
   },
 
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: scale(15),
-    paddingVertical: moderateScale(14),
+    paddingHorizontal: scale(16),
+    paddingVertical: moderateScale(16),
     borderBottomWidth: scale(0.5),
     borderBottomColor: "#f0f0f0",
   },
@@ -1310,28 +1467,33 @@ const styles = StyleSheet.create({
   menuItemLeft: { flexDirection: "row", alignItems: "center", flex: 1 },
 
   iconContainer: {
-    width: moderateScale(45),
-    height: moderateScale(45),
+    width: moderateScale(48),
+    height: moderateScale(48),
     borderRadius: moderateScale(50),
-    backgroundColor: "rgba(141, 110, 99, 0.1)",
+    backgroundColor: "#F4FAF4",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: moderateScale(15),
+    marginRight: moderateScale(14),
     borderWidth: scale(1),
-    borderColor: "rgba(141, 110, 99, 0.2)",
+    borderColor: "rgba(76, 175, 80, 0.14)",
   },
 
   menuItemText: { flex: 1 },
   menuItemTitle: {
     fontSize: normalizeFont(13),
-    fontWeight: "500",
-    color: "#333",
+    fontWeight: "700",
+    color: "#22324A",
+    marginBottom: moderateScale(2),
   },
-  menuItemSubtitle: { fontSize: normalizeFont(12), color: "#666" },
+  menuItemSubtitle: {
+    fontSize: normalizeFont(11.5),
+    color: "#6B7280",
+    lineHeight: moderateScale(16),
+  },
 
   logoutSection: {
     paddingHorizontal: scale(16),
-    paddingVertical: moderateScale(20),
+    paddingVertical: moderateScale(22),
     marginBottom: moderateScale(20),
     flexDirection: "row",
     justifyContent: "center",
@@ -1342,11 +1504,11 @@ const styles = StyleSheet.create({
   logoutButton: {
     backgroundColor: "#4CAF50",
     flexDirection: "row",
-    width: "70%",
+    width: "78%",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: moderateScale(18),
-    borderRadius: moderateScale(10),
+    borderRadius: moderateScale(16),
     elevation: moderateScale(2),
     shadowColor: "#000",
     shadowOffset: { width: 0, height: moderateScale(2) },

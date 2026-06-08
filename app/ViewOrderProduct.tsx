@@ -132,7 +132,7 @@ export default function ProductDetailScreen() {
         setAddresses(formattedAddresses);
         try {
           console.log("Fetching selected delivery address...");
-          const selectedRes = await axios.get(
+          const selectedRes = await axios.post(
             `${API_BASE}/api/buyer/delivery/address`,
             {
               headers: { Authorization: `Bearer ${token}` },
