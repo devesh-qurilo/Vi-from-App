@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -332,29 +333,40 @@ const AddProduct = ({ refreshprops }) => {
       </TouchableOpacity>
 
       <Modal visible={modalVisible} animationType="slide" transparent>
-        <TouchableOpacity
-          style={styles.overlay}
-          activeOpacity={1}
-          onPress={() => !loading && setModalVisible(false)}
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoidingContainer}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? moderateScale(8) : 0}
         >
           <TouchableOpacity
-            style={styles.modalContainer}
+            style={styles.overlay}
             activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
+            onPress={() => !loading && setModalVisible(false)}
           >
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: moderateScale(40) }}
+            <TouchableOpacity
+              style={styles.modalContainer}
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
             >
-              <View style={styles.header}>
-                <Pressable onPress={() => !loading && setModalVisible(false)}>
-                  <Ionicons name="arrow-back" size={24} color="#000" />
-                </Pressable>
-                <Text allowFontScaling={false} style={styles.headerText}>
-                  Add Product Details
-                </Text>
-                <View />
-              </View>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                bounces={false}
+                contentContainerStyle={styles.modalScrollContent}
+              >
+                <View style={styles.dragHandle} />
+                <View style={styles.header}>
+                  <Pressable
+                    style={styles.headerIconButton}
+                    onPress={() => !loading && setModalVisible(false)}
+                  >
+                    <Ionicons name="arrow-back" size={22} color="#111827" />
+                  </Pressable>
+                  <Text allowFontScaling={false} style={styles.headerText}>
+                    Add Product Details
+                  </Text>
+                  <View style={styles.headerIconButton} />
+                </View>
 
               <Text allowFontScaling={false} style={styles.smallNote}>
                 * marks important fields
@@ -368,27 +380,25 @@ const AddProduct = ({ refreshprops }) => {
                 value={name}
                 onChangeText={setName}
                 placeholder="e.g., Kashmiri Apples"
+                placeholderTextColor="#9ca3af"
+                returnKeyType="next"
                 editable={!loading}
               />
 
               <View style={styles.row}>
-                <View
-                  style={{
-                    flex: 1,
-                    position: "relative",
-                    marginRight: moderateScale(8),
-                  }}
-                >
+                <View style={[styles.fieldHalf, styles.dropdownField]}>
                   <Text allowFontScaling={false} style={styles.label}>
                     Category *
                   </Text>
 
                   <TouchableOpacity
                     style={[styles.input, styles.pickerInput]}
-                    onPress={() =>
-                      !categoriesLoading &&
-                      setIsCategoryDropdownOpen(!isCategoryDropdownOpen)
-                    }
+                    onPress={() => {
+                      if (categoriesLoading) return;
+                      setIsVarietyDropdownOpen(false);
+                      setIsUnitDropdownOpen(false);
+                      setIsCategoryDropdownOpen(!isCategoryDropdownOpen);
+                    }}
                     disabled={loading || categoriesLoading}
                   >
                     <Text
@@ -456,17 +466,19 @@ const AddProduct = ({ refreshprops }) => {
                   )}
                 </View>
 
-                <View style={{ flex: 1, position: "relative" }}>
+                <View style={[styles.fieldHalf, styles.dropdownField]}>
                   <Text allowFontScaling={false} style={styles.label}>
                     Variety *
                   </Text>
 
                   <TouchableOpacity
                     style={[styles.input, styles.pickerInput]}
-                    onPress={() =>
-                      !varietyLoading &&
-                      setIsVarietyDropdownOpen(!isVarietyDropdownOpen)
-                    }
+                    onPress={() => {
+                      if (varietyLoading) return;
+                      setIsCategoryDropdownOpen(false);
+                      setIsUnitDropdownOpen(false);
+                      setIsVarietyDropdownOpen(!isVarietyDropdownOpen);
+                    }}
                     disabled={loading || varietyLoading}
                   >
                     <Text
@@ -537,7 +549,7 @@ const AddProduct = ({ refreshprops }) => {
               </View>
 
               <View style={styles.row}>
-                <View style={styles.flex1}>
+                <View style={styles.fieldThird}>
                   <Text allowFontScaling={false} style={styles.label}>
                     Price (₹) *
                   </Text>
@@ -546,12 +558,14 @@ const AddProduct = ({ refreshprops }) => {
                     value={price}
                     onChangeText={setPrice}
                     placeholder="eg.0"
-                    keyboardType="numeric"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="decimal-pad"
+                    returnKeyType="next"
                     editable={!loading}
                   />
                 </View>
 
-                <View style={styles.flex1}>
+                <View style={styles.fieldThird}>
                   <Text allowFontScaling={false} style={styles.label}>
                     Quantity *
                   </Text>
@@ -560,19 +574,25 @@ const AddProduct = ({ refreshprops }) => {
                     value={quantity}
                     onChangeText={setQuantity}
                     placeholder="eg.0"
-                    keyboardType="numeric"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="decimal-pad"
+                    returnKeyType="next"
                     editable={!loading}
                   />
                 </View>
 
-                <View style={{ flex: 1, position: "relative" }}>
+                <View style={[styles.fieldThird, styles.dropdownField]}>
                   <Text allowFontScaling={false} style={styles.label}>
                     Unit *
                   </Text>
 
                   <TouchableOpacity
                     style={[styles.input, styles.pickerInput]}
-                    onPress={() => setIsUnitDropdownOpen(!isUnitDropdownOpen)}
+                    onPress={() => {
+                      setIsCategoryDropdownOpen(false);
+                      setIsVarietyDropdownOpen(false);
+                      setIsUnitDropdownOpen(!isUnitDropdownOpen);
+                    }}
                     disabled={loading}
                   >
                     <Text
@@ -628,6 +648,8 @@ const AddProduct = ({ refreshprops }) => {
                     value={weightPerPiece}
                     onChangeText={setWeightPerPiece}
                     placeholder="e.g., 400g or 0.4kg"
+                    placeholderTextColor="#9ca3af"
+                    returnKeyType="next"
                     editable={!loading}
                   />
                   <Text allowFontScaling={false} style={styles.helperText}>
@@ -694,6 +716,8 @@ const AddProduct = ({ refreshprops }) => {
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Write product details here (optional)"
+                placeholderTextColor="#9ca3af"
+                returnKeyType="done"
                 multiline
                 editable={!loading}
               />
@@ -738,8 +762,9 @@ const AddProduct = ({ refreshprops }) => {
                 </TouchableOpacity>
               </View>
             </ScrollView>
+            </TouchableOpacity>
           </TouchableOpacity>
-        </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );
@@ -802,64 +827,115 @@ export const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.28)",
   },
 
+  keyboardAvoidingContainer: {
+    flex: 1,
+  },
+
   modalContainer: {
-    maxHeight: "88%",
+    maxHeight: "92%",
     width: "100%",
-    backgroundColor: "#fff",
-    borderTopLeftRadius: moderateScale(16),
-    borderTopRightRadius: moderateScale(16),
-    paddingVertical: moderateScale(12),
-    paddingHorizontal: moderateScale(14),
-    borderWidth: 1,
-    borderColor: "rgba(255, 202, 40, 0.9)",
+    backgroundColor: "#fbfffb",
+    borderTopLeftRadius: moderateScale(20),
+    borderTopRightRadius: moderateScale(20),
+    paddingTop: moderateScale(8),
+    paddingHorizontal: moderateScale(16),
+    borderWidth: moderateScale(1),
+    borderColor: "#d7f3df",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -moderateScale(3) },
+    shadowOpacity: Platform.OS === "ios" ? 0.08 : 0.14,
+    shadowRadius: moderateScale(8),
+    elevation: 16,
+  },
+
+  modalScrollContent: {
+    paddingBottom: moderateScale(34),
+  },
+
+  dragHandle: {
+    alignSelf: "center",
+    width: moderateScale(40),
+    height: moderateScale(4),
+    borderRadius: moderateScale(10),
+    backgroundColor: "#d1d5db",
+    marginBottom: moderateScale(10),
   },
 
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: moderateScale(8),
+    marginBottom: moderateScale(6),
+  },
+
+  headerIconButton: {
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(20),
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   headerText: {
-    fontSize: normalizeFont(13),
-    fontWeight: "600",
-    color: "#000",
+    flex: 1,
+    textAlign: "center",
+    fontSize: normalizeFont(16),
+    fontWeight: "700",
+    color: "#111827",
   },
 
   smallNote: {
     fontSize: normalizeFont(11),
-    color: "#777",
-    marginBottom: moderateScale(8),
+    color: "#6b7280",
+    marginBottom: moderateScale(10),
   },
 
   label: {
-    fontSize: normalizeFont(14),
-    fontWeight: "500",
+    fontSize: normalizeFont(13),
+    fontWeight: "600",
     marginTop: moderateScale(10),
     marginBottom: moderateScale(6),
-    color: "#333",
+    color: "#1f2937",
   },
 
   input: {
     borderWidth: moderateScale(1),
-    borderColor: "#f0c96a",
+    borderColor: "#d9e8d9",
     borderRadius: moderateScale(10),
     paddingVertical: moderateScale(10),
     paddingHorizontal: moderateScale(12),
     backgroundColor: "#fff",
     marginBottom: moderateScale(8),
     fontSize: normalizeFont(14),
+    minHeight: moderateScale(48),
+    color: "#111827",
   },
 
   row: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    flexWrap: "wrap",
     marginBottom: moderateScale(6),
     gap: moderateScale(8),
   },
 
   flex1: { flex: 1 },
+
+  fieldHalf: {
+    flexGrow: 1,
+    flexBasis: "47%",
+    minWidth: moderateScale(142),
+  },
+
+  fieldThird: {
+    flexGrow: 1,
+    flexBasis: "30%",
+    minWidth: moderateScale(104),
+  },
+
+  dropdownField: {
+    position: "relative",
+    zIndex: 5,
+  },
 
   pickerInput: {
     flexDirection: "row",
@@ -902,7 +978,8 @@ export const styles = StyleSheet.create({
   checkboxRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: moderateScale(10),
+    marginTop: moderateScale(12),
+    paddingVertical: moderateScale(8),
   },
 
   submitContainer: {
@@ -913,14 +990,14 @@ export const styles = StyleSheet.create({
 
   submitBtn: {
     backgroundColor: "#22c55e",
-    width: "72%",
+    width: "100%",
     borderRadius: moderateScale(10),
     paddingVertical: moderateScale(14),
     flexDirection: "row",
     justifyContent: "center",
     gap: scale(6),
     alignContent: "center",
-    marginTop: moderateScale(20),
+    marginTop: moderateScale(16),
     marginBottom: moderateScale(10),
     alignItems: "center",
     minHeight: moderateScale(48),
@@ -938,7 +1015,7 @@ export const styles = StyleSheet.create({
 
   imageUpload: {
     borderWidth: moderateScale(1),
-    borderColor: "#f0c96a",
+    borderColor: "#d9e8d9",
     borderRadius: moderateScale(10),
     paddingVertical: moderateScale(12),
     paddingHorizontal: moderateScale(14),
