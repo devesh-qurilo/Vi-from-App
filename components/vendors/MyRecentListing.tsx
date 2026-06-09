@@ -55,14 +55,21 @@ const MyRecentListing = () => {
 
       if (res?.data?.success && Array.isArray(res.data.products)) {
         const formatted = res.data.products.map((product, idx) => {
-          const rawId = product.id ?? `${product.name ?? "product"}-${idx}`;
+          const rawId =
+            product._id ?? product.id ?? `${product.name ?? "product"}-${idx}`;
           return {
+            ...product,
             id: String(rawId),
             name: product.name ?? "Untitled product",
             price: product.price ?? 0,
+            category: product.category ?? "",
+            variety: product.variety ?? "",
             unit: product.unit ?? "",
             weightPerPiece: product.weightPerPiece ?? "",
             quantity: product.quantity ?? 0,
+            description: product.description ?? "",
+            allIndiaDelivery: product.allIndiaDelivery ?? false,
+            images: Array.isArray(product.images) ? product.images : [],
             uploadedOn: product.datePosted
               ? new Date(product.datePosted).toLocaleDateString()
               : "",
@@ -111,9 +118,10 @@ const MyRecentListing = () => {
   };
 
   const submitModal = (updatedProduct) => {
+    const updatedId = updatedProduct?._id || updatedProduct?.id;
     setListingsData((prev) =>
       prev.map((item) =>
-        item.id === updatedProduct.id ? updatedProduct : item,
+        (item._id || item.id) === updatedId ? updatedProduct : item,
       ),
     );
     closeModal();
@@ -526,7 +534,7 @@ const MyRecentListing = () => {
         <ProductModal
           visible={modalVisible}
           onClose={closeModal}
-          onSubmit={submitModal}
+          onUpdated={submitModal}
           product={selectedProduct}
         />
       )}

@@ -1039,21 +1039,12 @@ const ProductList = ({ refreshbut }) => {
   };
 
   const handleEditProduct = (product) => {
-    const formattedProduct = {
+    setSelectedProduct({
+      ...product,
       id: product._id || product.id,
-      name: product.name,
-      price: product.price,
-      quantity: product.quantity,
-      uploadedOn: product.datePosted
-        ? new Date(product.datePosted).toLocaleDateString()
-        : "",
       image: (product.images && product.images[0]) || product.image || "",
       status: product.status || "In Stock",
-      category:
-        (product.category && (product.category.name || product.category)) ||
-        "Fruits",
-    };
-    setSelectedProduct(formattedProduct);
+    });
     setModalVisible(true);
   };
 
@@ -1063,8 +1054,9 @@ const ProductList = ({ refreshbut }) => {
   };
 
   const submitModal = (updatedProduct) => {
+    const updatedId = updatedProduct?._id || updatedProduct?.id;
     const updatedList = products.map((item) =>
-      (item._id || item.id) === updatedProduct.id
+      (item._id || item.id) === updatedId
         ? {
             ...item,
             name: updatedProduct.name,
@@ -1181,7 +1173,7 @@ const ProductList = ({ refreshbut }) => {
         <ProductModal
           visible={modalVisible}
           onClose={closeModal}
-          onSubmit={submitModal}
+          onUpdated={submitModal}
           product={selectedProduct}
         />
       )}

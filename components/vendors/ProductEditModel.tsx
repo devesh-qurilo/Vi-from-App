@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -67,11 +68,46 @@ const normalizeUnitForDropdown = (unit) => {
   return u;
 };
 
+const getEntityInfo = (value) => {
+  if (!value) return { name: "", id: null };
+  if (typeof value === "object") {
+    const name = value.name ?? value.title ?? value.label ?? "";
+    const id = value._id ?? value.id ?? value.value ?? null;
+    return { name: name ? String(name) : id ? String(id) : "", id };
+  }
+  return { name: String(value), id: String(value) };
+};
+
+const parseBoolean = (value) => {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") return value.toLowerCase() === "true";
+  return Boolean(value);
+};
+
+const normalizeProductImages = (product) => {
+  const sources = Array.isArray(product?.images)
+    ? product.images
+    : product?.image
+      ? [product.image]
+      : [];
+
+  return sources
+    .map((image) => {
+      if (!image) return null;
+      if (typeof image === "string") return image;
+      if (typeof image === "object") {
+        return image.url ?? image.path ?? image.uri ?? image.secure_url ?? null;
+      }
+      return String(image);
+    })
+    .filter(Boolean);
+};
+
 // bumpFont: add +1 to every font size (user requested)
 const bumpFont = (size) =>
   typeof normalizeFont === "function" ? normalizeFont(size) + 1 : size + 1;
 
-const ProductEditModal = ({ visible, onClose, onUpdated, product }) => {
+const ProductEditModal = ({ visible, onClose, onUpdated, onSubmit, product }) => {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [unit, setUnit] = useState("");
@@ -113,56 +149,32 @@ const ProductEditModal = ({ visible, onClose, onUpdated, product }) => {
       setName(product.name ?? "");
       setPrice(product.price != null ? String(product.price) : "");
       setQuantity(product.quantity != null ? String(product.quantity) : "");
-      if (product.category) {
-        if (typeof product.category === "object") {
-          setCategory(product.category.name ?? "");
-          setInitialCategoryId(
-            product.category._id ?? product.category.id ?? null,
-          );
-        } else {
-          setCategory(String(product.category));
-          setInitialCategoryId(String(product.category));
-        }
-      } else {
-        setCategory("");
-        setInitialCategoryId(null);
-      }
 
-      // variety: could be object, id or name.
-      if (product.variety) {
-        if (typeof product.variety === "object") {
-          setVariety(product.variety.name ?? "");
-          setInitialVarietyId(
-            product.variety._id ?? product.variety.id ?? null,
-          );
-        } else {
-          setVariety(String(product.variety));
-          setInitialVarietyId(String(product.variety));
-        }
-      } else {
-        setVariety("");
-        setInitialVarietyId(null);
-      }
+      const categoryInfo = getEntityInfo(
+        product.category ?? product.categoryName ?? product.categoryId,
+      );
+      setCategory(categoryInfo.name);
+      setInitialCategoryId(categoryInfo.id);
+
+      const varietyInfo = getEntityInfo(
+        product.variety ?? product.varietyName ?? product.varietyId,
+      );
+      setVariety(varietyInfo.name);
+      setInitialVarietyId(varietyInfo.id);
 
       setUnit(normalizeUnitForDropdown(product.unit ?? ""));
-      setDescription(product.description ?? "");
-      setAllIndiaDelivery(Boolean(product.allIndiaDelivery));
-      setWeightPerPiece(product.weightPerPiece ?? "");
-
-      // normalize product.images to strings
-      if (Array.isArray(product.images)) {
-        const normalized = product.images
-          .map((i) => {
-            if (!i) return null;
-            if (typeof i === "string") return i;
-            if (typeof i === "object") return i.url ?? i.path ?? null;
-            return String(i);
-          })
-          .filter(Boolean);
-        setExistingImages(normalized);
-      } else {
-        setExistingImages([]);
-      }
+      setDescription(product.description ?? product.productDescription ?? "");
+      setAllIndiaDelivery(
+        parseBoolean(
+          product.allIndiaDelivery ??
+            product.isAllIndiaDelivery ??
+            product.deliveryAllIndia,
+        ),
+      );
+      setWeightPerPiece(
+        product.weightPerPiece != null ? String(product.weightPerPiece) : "",
+      );
+      setExistingImages(normalizeProductImages(product));
       setNewImages([]);
     } else {
       resetForm();
@@ -202,6 +214,8 @@ const ProductEditModal = ({ visible, onClose, onUpdated, product }) => {
 
   // when category changes -> update variety options
   useEffect(() => {
+    if (allVarieties.length === 0) return;
+
     if (!category) {
       setVarietyOptions(allVarieties.map((v) => v.name));
       if (!allVarieties.some((v) => v.name === variety)) setVariety("");
@@ -263,7 +277,7 @@ const ProductEditModal = ({ visible, onClose, onUpdated, product }) => {
         if (typeof v.category === "string") {
           return (
             v.category === selectedCategory ||
-            v.category === selectedCategory._id
+            v.category.toLowerCase() === String(selectedCategory).toLowerCase()
           );
         } else if (typeof v.category === "object") {
           const catName = (v.category.name || "").toLowerCase();
@@ -278,7 +292,7 @@ const ProductEditModal = ({ visible, onClose, onUpdated, product }) => {
 
       const names = filtered.length > 0 ? filtered.map((f) => f.name) : [];
       setVarietyOptions(names);
-      if (variety && !names.includes(variety)) {
+      if (names.length > 0 && variety && !names.includes(variety)) {
         setVariety("");
       }
     } catch (err) {
@@ -401,7 +415,8 @@ const ProductEditModal = ({ visible, onClose, onUpdated, product }) => {
 
       if (res.data?.success) {
         Alert.alert("Success", "Product updated successfully!");
-        if (onUpdated) onUpdated(res.data.data ?? res.data);
+        const callback = onUpdated || onSubmit;
+        if (callback) callback(res.data.data ?? res.data);
         if (onClose) onClose();
       } else {
         Alert.alert("Error", res.data?.message || "Update failed");
@@ -442,10 +457,16 @@ const ProductEditModal = ({ visible, onClose, onUpdated, product }) => {
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.overlay}>
-        <View style={styles.modalContainer}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingContainer}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? moderateScale(8) : 0}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.modalContainer}>
           <ScrollView
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ paddingBottom: 40 }}
           >
             <View style={styles.header}>
@@ -883,8 +904,9 @@ const ProductEditModal = ({ visible, onClose, onUpdated, product }) => {
               </TouchableOpacity>
             </View>
           </ScrollView>
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -941,6 +963,10 @@ export const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.3)",
     justifyContent: "flex-end",
+  },
+
+  keyboardAvoidingContainer: {
+    flex: 1,
   },
 
   modalContainer: {
