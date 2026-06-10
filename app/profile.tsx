@@ -25,6 +25,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthContext } from "./context/AuthContext";
 import { moderateScale, normalizeFont, scale } from "./Responsive";
+import {
+  createLocationPayload,
+  normalizeApiLocation,
+  normalizeReverseGeocodeAddress,
+} from "./utils/locationAddress";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const API_BASE = "https://vi-farm-backend.onrender.com";
@@ -58,6 +63,7 @@ const ProfileScreen = () => {
   const [city, setCity] = useState("");
   const [district, setDistrict] = useState("");
   const [state, setState] = useState("");
+  const [country, setCountry] = useState("");
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
   const [updatingLocation, setUpdatingLocation] = useState(false);
@@ -104,14 +110,14 @@ const ProfileScreen = () => {
       const token = await AsyncStorage.getItem("userToken");
       if (!token) return;
 
-      const response = await axios.put(`${API_BASE}/api/buyer/location`, {
+      const response = await axios.get(`${API_BASE}/api/buyer/location`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
       if (response.data.success && response.data.data) {
-        const locationData = response.data.data;
+        const locationData = normalizeApiLocation(response.data);
         setSavedLocation(locationData);
 
         setPinCode(locationData.pinCode || "");
@@ -120,6 +126,7 @@ const ProfileScreen = () => {
         setCity(locationData.city || "");
         setDistrict(locationData.district || "");
         setState(locationData.state || "");
+        setCountry(locationData.country || "");
         setLatitude(locationData.latitude || null);
         setLongitude(locationData.longitude || null);
       }
@@ -288,12 +295,19 @@ const ProfileScreen = () => {
       });
 
       if (geocode.length > 0) {
-        const address = geocode[0];
+        const address = normalizeReverseGeocodeAddress(
+          geocode[0],
+          latitude,
+          longitude,
+        );
+
+        setPinCode(address.pinCode || "");
+        setHouseNumber(address.houseNumber || houseNumber);
+        setLocality(address.locality || "");
         setCity(address.city || "");
-        setDistrict(address.district || address.subregion || "");
-        setState(address.region || "");
-        setPinCode(address.postalCode || "");
-        setLocality(address.street || address.name || "");
+        setDistrict(address.district || "");
+        setState(address.state || "");
+        setCountry(address.country || "");
 
         Alert.alert("Success", "Location fetched successfully!");
       }
@@ -313,6 +327,7 @@ const ProfileScreen = () => {
       setCity("");
       setDistrict("");
       setState("");
+      setCountry("");
       setLatitude(null);
       setLongitude(null);
     }
@@ -344,7 +359,8 @@ const ProfileScreen = () => {
         !locality ||
         !city ||
         !district ||
-        !state
+        !state ||
+        !country
       ) {
         Alert.alert("Error", "Please fill all required fields");
         return;
@@ -359,16 +375,17 @@ const ProfileScreen = () => {
         return;
       }
 
-      const locationData = {
-        pinCode: pinCode.trim(),
-        houseNumber: houseNumber.trim(),
-        locality: locality.trim(),
-        city: city.trim(),
-        district: district.trim(),
-        state: state.trim(),
+      const locationData = createLocationPayload({
+        pinCode,
+        houseNumber,
+        locality,
+        city,
+        district,
+        state,
+        country,
         latitude: latitude || 0,
         longitude: longitude || 0,
-      };
+      });
 
       console.log("Sending location data:", locationData);
 
@@ -386,7 +403,7 @@ const ProfileScreen = () => {
 
       if (response.data.success) {
         // Update saved location state
-        setSavedLocation(locationData);
+        setSavedLocation(normalizeApiLocation(response.data));
 
         handleCloseLocationModal();
         Alert.alert("Success", "Location updated successfully!");
@@ -954,6 +971,18 @@ const ProfileScreen = () => {
                     value={state}
                     onChangeText={setState}
                     placeholder="State *"
+                    placeholderTextColor="#999"
+                    editable={!updatingLocation}
+                  />
+                </View>
+
+                <View style={styles.fieldContainer}>
+                  <TextInput
+                    allowFontScaling={false}
+                    style={styles.textInput}
+                    value={country}
+                    onChangeText={setCountry}
+                    placeholder="Country *"
                     placeholderTextColor="#999"
                     editable={!updatingLocation}
                   />

@@ -24,9 +24,16 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { moderateScale, normalizeFont, scale } from "../Responsive";
+import {
+  createLocationPayload,
+  normalizeApiLocation,
+  normalizeReverseGeocodeAddress,
+} from "../utils/locationAddress";
 
 const { height } = Dimensions.get("window");
 const API_BASE = "https://vi-farm-backend.onrender.com";
+const ExpoFileSystem = FileSystem as Record<string, any>;
+const ExpoImagePicker = ImagePicker as Record<string, any>;
 
 // ---------------- EditProfileModal ----------------
 
@@ -76,8 +83,8 @@ const EditProfileModal = ({ visible, onClose, initialData = {}, onUpdate }) => {
 
   const getMediaTypesOption = () => {
     return (
-      ImagePicker?.MediaType?.Image ||
-      ImagePicker?.MediaTypeOptions?.Images ||
+      ExpoImagePicker.MediaType?.Image ||
+      ExpoImagePicker.MediaTypeOptions?.Images ||
       undefined
     );
   };
@@ -183,7 +190,7 @@ const EditProfileModal = ({ visible, onClose, initialData = {}, onUpdate }) => {
       if (Platform.OS === "android") {
         if (uri.startsWith("content://")) {
           const filename = `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.jpg`;
-          const dest = `${FileSystem.cacheDirectory}${filename}`;
+          const dest = `${ExpoFileSystem.cacheDirectory}${filename}`;
           try {
             await FileSystem.copyAsync({ from: uri, to: dest });
             return dest;
@@ -686,6 +693,8 @@ const EditLocationModal = ({ visible, onClose, onSubmit, initialData }) => {
   const [locality, setLocality] = useState("");
   const [city, setCity] = useState("");
   const [district, setDistrict] = useState("");
+  const [state, setState] = useState("");
+  const [country, setCountry] = useState("");
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
   const [deliveryRadius, setDeliveryRadius] = useState("");
@@ -699,6 +708,8 @@ const EditLocationModal = ({ visible, onClose, onSubmit, initialData }) => {
       setLocality(initialData.locality || "");
       setCity(initialData.city || "");
       setDistrict(initialData.district || "");
+      setState(initialData.state || "");
+      setCountry(initialData.country || "");
       setDeliveryRadius(
         String(initialData.deliveryRadius || "").replace("km", ""),
       );
@@ -738,11 +749,18 @@ const EditLocationModal = ({ visible, onClose, onSubmit, initialData }) => {
       });
 
       if (address?.length > 0) {
-        const a = address[0];
-        setPinCode(a.postalCode || "");
-        setCity(a.city || a.subregion || "");
-        setDistrict(a.region || "");
-        setLocality(a.name || a.street || "");
+        const a = normalizeReverseGeocodeAddress(
+          address[0],
+          latitude,
+          longitude,
+        );
+        setPinCode(a.pinCode || "");
+        setHouseNumber(a.houseNumber || houseNumber);
+        setLocality(a.locality || "");
+        setCity(a.city || "");
+        setDistrict(a.district || "");
+        setState(a.state || "");
+        setCountry(a.country || "");
       }
 
       Alert.alert("Success", "Current location fetched!");
@@ -758,7 +776,15 @@ const EditLocationModal = ({ visible, onClose, onSubmit, initialData }) => {
      ✅ SUBMIT LOCATION
   ============================== */
   const handleSubmit = async () => {
-    if (!pinCode || !houseNumber || !locality || !city || !district) {
+    if (
+      !pinCode ||
+      !houseNumber ||
+      !locality ||
+      !city ||
+      !district ||
+      !state ||
+      !country
+    ) {
       Alert.alert("Error", "Please fill all required fields");
       return;
     }
@@ -778,16 +804,20 @@ const EditLocationModal = ({ visible, onClose, onSubmit, initialData }) => {
         return;
       }
 
-      const body = {
-        pinCode,
-        houseNumber,
-        locality,
-        city,
-        district,
-        latitude: latitude || 0,
-        longitude: longitude || 0,
-        deliveryRegion: `${radiusInt}km`,
-      };
+      const body = createLocationPayload(
+        {
+          pinCode,
+          houseNumber,
+          locality,
+          city,
+          district,
+          state,
+          country,
+          latitude: latitude || 0,
+          longitude: longitude || 0,
+        },
+        { deliveryRadius: radiusInt },
+      );
 
       const response = await axios.put(
         `${API_BASE}/api/vendor/update-location`,
@@ -801,7 +831,7 @@ const EditLocationModal = ({ visible, onClose, onSubmit, initialData }) => {
 
       if (response.data?.success) {
         Alert.alert("Success", "Location updated!");
-        onSubmit(response.data.data);
+        onSubmit(normalizeApiLocation(response.data));
         onClose();
       } else {
         Alert.alert("Error", response.data?.message || "Failed");
@@ -897,6 +927,21 @@ const EditLocationModal = ({ visible, onClose, onSubmit, initialData }) => {
               />
             </View>
 
+            <View style={modalStyles.row}>
+              <TextInput
+                style={[modalStyles.textInput, modalStyles.halfInput]}
+                placeholder="State *"
+                value={state}
+                onChangeText={setState}
+              />
+              <TextInput
+                style={[modalStyles.textInput, modalStyles.halfInput]}
+                placeholder="Country *"
+                value={country}
+                onChangeText={setCountry}
+              />
+            </View>
+
             <Text style={modalStyles.sectionTitle}>Delivery Region</Text>
 
             <View style={modalStyles.deliveryRow}>
@@ -961,13 +1006,30 @@ const VendorProfile = () => {
           phone: user.mobileNumber,
           upiId: user.upiId,
           image: user.profilePicture,
-          address: user.address || {},
+          address: normalizeApiLocation(user.address || {}),
         });
+
+        await fetchVendorLocation(token);
       }
     } catch (error) {
       console.log("Error fetching profile:", error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchVendorLocation = async (token) => {
+    try {
+      const res = await axios.get(`${API_BASE}/api/vendor/update-location`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.data?.success) {
+        const address = normalizeApiLocation(res.data);
+        setUserInfo((prev) => (prev ? { ...prev, address } : prev));
+      }
+    } catch (error) {
+      console.log("Error fetching vendor location:", error.message);
     }
   };
 
@@ -995,9 +1057,12 @@ const VendorProfile = () => {
   const ratingText = userInfo?.rating ? String(userInfo.rating) : "New";
   const statusText = userInfo?.status || "Active";
   const primaryAddress =
+    userInfo?.address?.fullAddress ||
     userInfo?.address?.locality ||
     userInfo?.address?.city ||
     userInfo?.address?.district ||
+    userInfo?.address?.state ||
+    userInfo?.address?.country ||
     "Set your business location";
 
   const ProfileMenuItem = ({ icon, title, subtitle, onPress }) => (

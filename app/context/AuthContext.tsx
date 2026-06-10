@@ -260,6 +260,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Platform } from "react-native";
+import { normalizeApiLocation } from "../utils/locationAddress";
 import { registerForPushNotificationsAsync } from "../utility/notifications";
 
 export const AuthContext = createContext(null);
@@ -269,6 +270,7 @@ function AuthProviderComponent({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [address, setAddress] = useState(null); // keep single default address or null
+  const [vendorAddress, setVendorAddress] = useState(null);
 
   const API_BASE = "https://vi-farm-backend.onrender.com/api/auth";
   const API_BUYER_BASE = "https://vi-farm-backend.onrender.com/api/buyer";
@@ -641,6 +643,7 @@ function AuthProviderComponent({ children }) {
 
       setUser(null);
       setAddress(null);
+      setVendorAddress(null);
     } catch (err) {
       console.warn("logout error:", err);
     }
@@ -687,6 +690,57 @@ function AuthProviderComponent({ children }) {
     }
   };
 
+  const fetchVendorAddress = async () => {
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      if (!token) {
+        console.warn(
+          "fetchVendorAddress: No token present. Skipping address fetch.",
+        );
+        return null;
+      }
+
+      const res = await axios.get(`${API_ROOT}/vendor/update-location`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res?.data?.success || res?.data?.status === "success") {
+        const nextVendorAddress = normalizeApiLocation(res.data);
+        setVendorAddress(nextVendorAddress);
+        await AsyncStorage.setItem(
+          "vendorAddress",
+          JSON.stringify(nextVendorAddress),
+        );
+        return nextVendorAddress;
+      }
+
+      console.warn("fetchVendorAddress: API responded non-success", res.data);
+      return res.data || null;
+    } catch (err) {
+      console.error(
+        "fetchVendorAddress error:",
+        err?.response?.data || err.message || err,
+      );
+      return {
+        success: false,
+        message:
+          err?.response?.data?.message ||
+          err.message ||
+          "Vendor address fetch failed",
+      };
+    }
+  };
+
+  const updateVendorAddressState = async (payload) => {
+    const nextVendorAddress = normalizeApiLocation(payload);
+    setVendorAddress(nextVendorAddress);
+    await AsyncStorage.setItem(
+      "vendorAddress",
+      JSON.stringify(nextVendorAddress),
+    );
+    return nextVendorAddress;
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -701,7 +755,10 @@ function AuthProviderComponent({ children }) {
         newPassword,
         fetchBuyerProfile,
         fetchBuyerAddress,
+        fetchVendorAddress,
+        updateVendorAddressState,
         address,
+        vendorAddress,
       }}
     >
       {children}

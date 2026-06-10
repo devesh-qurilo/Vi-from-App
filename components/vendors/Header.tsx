@@ -1,11 +1,16 @@
 // HeaderWithLocation.js
 import { moderateScale, normalizeFont, scale } from "@/app/Responsive";
+import {
+  createLocationPayload,
+  normalizeReverseGeocodeAddress,
+} from "@/app/utils/locationAddress";
 import { Ionicons } from "@expo/vector-icons";
+import { AuthContext } from "@/app/context/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import * as Location from "expo-location";
 import { useNavigation } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -22,28 +27,12 @@ import {
 const API_BASE = "https://vi-farm-backend.onrender.com";
 const reverseGeocodeLocation = async (latitude, longitude) => {
   try {
-    const response = await axios.get(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
-      {
-        headers: {
-          "User-Agent": "ViafarmApp/1.0.0 (Location Service)",
-        },
-        timeout: 10000,
-      },
-    );
-
-    const data = response.data || {};
-    const address = data.address || {};
-
-    return {
-      pinCode: address.postcode || "",
-      houseNumber: address.road || address.street || "",
-      locality: address.town || address.village || address.suburb || "",
-      city: address.city || address.county || "",
-      district: address.county || address.district || "",
+    const geocode = await Location.reverseGeocodeAsync({ latitude, longitude });
+    return normalizeReverseGeocodeAddress(
+      geocode?.[0] || {},
       latitude,
       longitude,
-    };
+    );
   } catch (error) {
     console.error("Reverse geocoding error:", error);
     return {
@@ -52,6 +41,8 @@ const reverseGeocodeLocation = async (latitude, longitude) => {
       locality: "",
       city: "",
       district: "",
+      state: "",
+      country: "",
       latitude,
       longitude,
     };
@@ -65,6 +56,8 @@ const EditLocationModal = ({ visible, onClose, initialData, onSubmit }) => {
   const [locality, setLocality] = useState("");
   const [city, setCity] = useState("");
   const [district, setDistrict] = useState("");
+  const [state, setState] = useState("");
+  const [country, setCountry] = useState("");
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
   const [deliveryRadius, setDeliveryRadius] = useState("");
@@ -78,6 +71,8 @@ const EditLocationModal = ({ visible, onClose, initialData, onSubmit }) => {
       setLocality(initialData.locality || "");
       setCity(initialData.city || "");
       setDistrict(initialData.district || "");
+      setState(initialData.state || "");
+      setCountry(initialData.country || "");
       setDeliveryRadius(
         String(initialData.deliveryRadius || "").replace("km", ""),
       );
@@ -126,6 +121,8 @@ const EditLocationModal = ({ visible, onClose, initialData, onSubmit }) => {
         setLocality(geocodedAddress.locality);
         setCity(geocodedAddress.city);
         setDistrict(geocodedAddress.district);
+        setState(geocodedAddress.state);
+        setCountry(geocodedAddress.country);
 
         if (geocodedAddress.city) {
           Alert.alert("Success", "Location fetched successfully!");
@@ -150,21 +147,23 @@ const EditLocationModal = ({ visible, onClose, initialData, onSubmit }) => {
     }
   };
 
-  const handleSearchLocation = () => {
-    Alert.alert(
-      "Search Location",
-      "Location search feature coming soon. Use 'Use my current location' for now.",
-    );
-  };
-
   const handleSubmit = async () => {
-    if (!pinCode || !houseNumber || !locality || !city || !district) {
-      Alert.alert("Error", "Please fill all required address fields.");
+    if (!houseNumber) {
+      Alert.alert("Error", "Please enter house number/block/street.");
       return;
     }
 
-    const radiusInt = parseInt(deliveryRadius, 10);
-    if (isNaN(radiusInt) || radiusInt < 0 || radiusInt > 10000) {
+    if (latitude == null || longitude == null) {
+      Alert.alert("Error", "Please fetch or enter your location coordinates.");
+      return;
+    }
+
+    const hasDeliveryRadius = String(deliveryRadius || "").trim().length > 0;
+    const radiusInt = hasDeliveryRadius ? parseInt(deliveryRadius, 10) : null;
+    if (
+      hasDeliveryRadius &&
+      (isNaN(radiusInt) || radiusInt < 0 || radiusInt > 10000)
+    ) {
       Alert.alert(
         "Error",
         "Delivery radius must be a valid number between 0 and 10,000.",
@@ -182,16 +181,22 @@ const EditLocationModal = ({ visible, onClose, initialData, onSubmit }) => {
         return;
       }
 
-      const body = {
-        pinCode,
-        houseNumber,
-        locality,
-        city,
-        district,
-        latitude: latitude || 0,
-        longitude: longitude || 0,
-        deliveryRegion: `${radiusInt}km`,
-      };
+      const body = createLocationPayload(
+        {
+          houseNumber,
+          latitude,
+          longitude,
+          pinCode,
+          locality,
+          city,
+          district,
+          state,
+          country,
+        },
+        {
+          deliveryRadius: hasDeliveryRadius ? radiusInt : null,
+        },
+      );
 
       const response = await axios.put(
         `${API_BASE}/api/vendor/update-location`,
@@ -351,6 +356,25 @@ const EditLocationModal = ({ visible, onClose, initialData, onSubmit }) => {
               />
             </View>
 
+            <View style={modalStyles.modalRow}>
+              <TextInput
+                style={[modalStyles.textInput, modalStyles.halfInput]}
+                placeholder="State *"
+                placeholderTextColor="#999"
+                value={state}
+                onChangeText={setState}
+                allowFontScaling={false}
+              />
+              <TextInput
+                style={[modalStyles.textInput, modalStyles.halfInput]}
+                placeholder="Country *"
+                placeholderTextColor="#999"
+                value={country}
+                onChangeText={setCountry}
+                allowFontScaling={false}
+              />
+            </View>
+
             <Text style={modalStyles.sectionTitle} allowFontScaling={false}>
               Delivery Region
             </Text>
@@ -398,53 +422,32 @@ const EditLocationModal = ({ visible, onClose, initialData, onSubmit }) => {
   );
 };
 
-// ============ Header Component ============
-interface AddressData {
-  city?: string;
-  locality?: string;
-  pinCode?: string;
-}
-
 const Header = () => {
-  const [address, setAddress] = useState(null);
+  const { vendorAddress, fetchVendorAddress, updateVendorAddressState } =
+    useContext(AuthContext) || {};
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const navigation = useNavigation();
+  const address = vendorAddress || {};
 
   useEffect(() => {
-    fetchVendorAddress();
+    const loadVendorAddress = async () => {
+      try {
+        await fetchVendorAddress?.();
+      } catch (error) {
+        console.error("Address fetch error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadVendorAddress();
+    // Fetch once when the vendor header mounts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchVendorAddress = async () => {
-    try {
-      const token = await AsyncStorage.getItem("userToken");
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      const response = await axios.get(
-        `${API_BASE}/api/vendor/update-location`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 15000,
-        },
-      );
-      const addressData = response?.data?.data?.address ?? {};
-
-      console.log("Vendor Address:", addressData);
-
-      setAddress(addressData);
-    } catch (error) {
-      console.error("Address fetch error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLocationUpdate = (updatedData) => {
-    setAddress(updatedData || {});
-    fetchVendorAddress();
+  const handleLocationUpdate = async (updatedData) => {
+    await updateVendorAddressState?.(updatedData);
   };
 
   const handleNotification = () => {
@@ -454,6 +457,27 @@ const Header = () => {
   const handleLocationPress = () => {
     setModalVisible(true);
   };
+
+  const titleText =
+    address?.city || address?.locality || address?.fullAddress || "Location";
+  const subtitleText =
+    address?.locality ||
+    address?.city ||
+    address?.district ||
+    address?.state ||
+    address?.country ||
+    address?.pinCode
+      ? [
+          address?.locality,
+          address?.city,
+          address?.district,
+          address?.state,
+          address?.country,
+          address?.pinCode,
+        ]
+          .filter(Boolean)
+          .join(", ")
+      : address?.fullAddress || address?.houseNumber || "Tap to add location";
 
   if (loading) {
     return (
@@ -472,7 +496,7 @@ const Header = () => {
         >
           <View style={styles.row}>
             <Text style={styles.cityText} allowFontScaling={false}>
-              {address.city || "Unknown City"}
+              {titleText}
             </Text>
             <Ionicons
               name="chevron-down"
@@ -482,9 +506,7 @@ const Header = () => {
             />
           </View>
           <Text style={styles.subText} allowFontScaling={false}>
-            {address?.locality
-              ? `${address?.city || ""}, ${address?.pinCode || ""}`
-              : "Tap to add location"}
+            {subtitleText}
           </Text>
         </TouchableOpacity>
 
