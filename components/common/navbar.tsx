@@ -1,4 +1,9 @@
 import { AuthContext } from "@/app/context/AuthContext";
+import {
+  createLocationPayload,
+  normalizeReverseGeocodeAddress,
+} from "@/app/utils/locationAddress";
+import LocationPickerFields from "@/components/common/LocationPickerFields";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
@@ -19,7 +24,6 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -46,7 +50,7 @@ const normalizeFont = (size) => {
 const { width } = Dimensions.get("window");
 const API_BASE_URL = "https://vi-farm-backend.onrender.com";
 
-export default function HeaderDesign() {
+export default function HeaderDesign({ autoOpenLocationModal = false }) {
   const [searchText, setSearchText] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showFilterPopup, setShowFilterPopup] = useState(false);
@@ -67,11 +71,11 @@ export default function HeaderDesign() {
     city: "",
     district: "",
     state: "",
+    country: "",
     latitude: 0,
     longitude: 0,
   });
 
-  const [isDefaultAddress, setIsDefaultAddress] = useState(false);
   const [addressLoading, setAddressLoading] = useState(false);
   const [locating, setLocating] = useState(false);
 
@@ -375,6 +379,18 @@ export default function HeaderDesign() {
   };
 
   const openAddressModal = () => {
+    setFormData((prev) => ({
+      ...prev,
+      pinCode: buyerLocation?.pinCode || prev.pinCode,
+      houseNumber: buyerLocation?.houseNumber || prev.houseNumber,
+      locality: buyerLocation?.locality || prev.locality,
+      city: buyerLocation?.city || prev.city,
+      district: buyerLocation?.district || prev.district,
+      state: buyerLocation?.state || prev.state,
+      country: buyerLocation?.country || prev.country || "India",
+      latitude: buyerLocation?.latitude || prev.latitude,
+      longitude: buyerLocation?.longitude || prev.longitude,
+    }));
     setShowAddressModal(true);
     Animated.timing(slideUpAnim, {
       toValue: 0,
@@ -402,10 +418,10 @@ export default function HeaderDesign() {
       city: "",
       district: "",
       state: "",
+      country: "",
       latitude: 0,
       longitude: 0,
     });
-    setIsDefaultAddress(false);
   };
 
   const handleAddressInputChange = (field, value) => {
@@ -433,16 +449,21 @@ export default function HeaderDesign() {
       });
 
       if (geocode && geocode.length > 0) {
-        const addr = geocode[0];
+        const addr = normalizeReverseGeocodeAddress(
+          geocode[0],
+          latitude,
+          longitude,
+        );
         setFormData({
-          houseNumber: addr.name || addr.street || "",
-          locality: addr.street || addr.subregion || "",
-          city: addr.city || addr.subregion || "",
-          district: addr.district || addr.region || addr.county || "",
-          state: addr.region || addr.state || "",
-          pinCode: addr.postalCode || "",
-          latitude: latitude,
-          longitude: longitude,
+          houseNumber: addr.houseNumber || "",
+          locality: addr.locality || "",
+          city: addr.city || "",
+          district: addr.district || "",
+          state: addr.state || "",
+          country: addr.country || "India",
+          pinCode: addr.pinCode || "",
+          latitude,
+          longitude,
         });
         Alert.alert("Success", "Location fetched successfully!");
       } else {
@@ -457,7 +478,14 @@ export default function HeaderDesign() {
   };
 
   // AuthContext
-  const { user, address, fetchBuyerAddress } = useContext(AuthContext);
+  const {
+    user,
+    address,
+    buyerLocation,
+    fetchBuyerAddress,
+    fetchBuyerLocation,
+    updateBuyerLocationState,
+  } = useContext(AuthContext);
   const profilePicture = user?.profilePicture || user?.profileImage || null;
 
   const getInitial = () => {
@@ -473,7 +501,24 @@ export default function HeaderDesign() {
 
   useEffect(() => {
     if (typeof fetchBuyerAddress === "function") fetchBuyerAddress();
+    if (typeof fetchBuyerLocation === "function") fetchBuyerLocation();
   }, []);
+
+  useEffect(() => {
+    if (!autoOpenLocationModal || showAddressModal) return;
+    if (String(user?.role || "").toLowerCase() === "vendor") return;
+
+    const ensureBuyerLocation = async () => {
+      const location = await fetchBuyerLocation?.();
+      if (!location || location.success === false) {
+        openAddressModal();
+      }
+    };
+
+    ensureBuyerLocation();
+    // Only check once when home navbar mounts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpenLocationModal]);
 
   // Save Address
   const handleSaveAddress = async () => {
@@ -485,6 +530,7 @@ export default function HeaderDesign() {
         "city",
         "district",
         "state",
+        "country",
       ];
       const missing = requiredFields.filter(
         (f) => !formData[f] || !String(formData[f]).trim(),
@@ -506,20 +552,14 @@ export default function HeaderDesign() {
         return;
       }
 
-      const payload = {
-        pinCode: String(formData.pinCode).trim(),
-        houseNumber: String(formData.houseNumber).trim(),
-        locality: String(formData.locality).trim(),
-        city: String(formData.city).trim(),
-        district: String(formData.district).trim(),
-        state: String(formData.state).trim(),
-        isDefault: Boolean(isDefaultAddress),
-        latitude: parseFloat(String(formData.latitude || 28.0)),
-        longitude: parseFloat(String(formData.longitude || 77.0)),
-      };
+      const payload = createLocationPayload({
+        ...formData,
+        latitude: parseFloat(String(formData.latitude || 0)),
+        longitude: parseFloat(String(formData.longitude || 0)),
+      });
 
-      const res = await axios.post(
-        `${API_BASE_URL}/api/buyer/addresses`,
+      const res = await axios.put(
+        `${API_BASE_URL}/api/buyer/location`,
         payload,
         {
           headers: {
@@ -531,15 +571,18 @@ export default function HeaderDesign() {
       );
 
       if (res.data && res.data.success) {
+        if (typeof updateBuyerLocationState === "function") {
+          await updateBuyerLocationState(res.data);
+        }
         if (typeof fetchBuyerAddress === "function") await fetchBuyerAddress();
         closeAddressModal();
-        Alert.alert("Success", "Address added successfully!");
+        Alert.alert("Success", "Location updated successfully!");
       } else {
-        Alert.alert("Error", res.data?.message || "Failed to add address");
+        Alert.alert("Error", res.data?.message || "Failed to update location");
       }
     } catch (error) {
-      console.error("Add Address Error:", error);
-      let errorMessage = "Failed to add address. Please try again.";
+      console.error("Update Buyer Location Error:", error);
+      let errorMessage = "Failed to update location. Please try again.";
       if (axios.isAxiosError(error)) {
         if (error.response?.data?.message) {
           errorMessage = error.response.data.message;
@@ -633,7 +676,7 @@ export default function HeaderDesign() {
               onPress={openAddressModal}
             >
               <Text allowFontScaling={false} style={styles.locationText}>
-                {address?.city || "Select City"}
+                {address?.city || buyerLocation?.city || "Select City"}
               </Text>
               <Image
                 source={require("../../assets/via-farm-img/icons/downArrow.png")}
@@ -671,7 +714,7 @@ export default function HeaderDesign() {
           </View>
 
           <Text allowFontScaling={false} style={styles.locationSubtitle}>
-            {address?.locality || ""}
+            {address?.locality || buyerLocation?.locality || ""}
           </Text>
 
           {/* Search Container */}
@@ -1206,18 +1249,28 @@ export default function HeaderDesign() {
                   Address Details *
                 </Text>
 
-                <TextInput
-                  style={styles.addressTextInput}
-                  placeholder="Pin Code *"
-                  keyboardType="number-pad"
-                  value={formData.pinCode}
-                  onChangeText={(value) =>
+                <LocationPickerFields
+                  country={formData.country}
+                  state={formData.state}
+                  district={formData.district}
+                  city={formData.city}
+                  pinCode={formData.pinCode}
+                  onCountryChange={(value) =>
+                    handleAddressInputChange("country", value)
+                  }
+                  onStateChange={(value) =>
+                    handleAddressInputChange("state", value)
+                  }
+                  onDistrictChange={(value) =>
+                    handleAddressInputChange("district", value)
+                  }
+                  onCityChange={(value) =>
+                    handleAddressInputChange("city", value)
+                  }
+                  onPinCodeChange={(value) =>
                     handleAddressInputChange("pinCode", value)
                   }
-                  placeholderTextColor="#999"
-                  maxLength={6}
-                  editable={!addressLoading}
-                  allowFontScaling={false}
+                  disabled={addressLoading}
                 />
 
                 <TextInput
@@ -1244,58 +1297,6 @@ export default function HeaderDesign() {
                   allowFontScaling={false}
                 />
 
-                <View style={styles.addressRow}>
-                  <TextInput
-                    style={[styles.addressTextInput, styles.addressHalfInput]}
-                    placeholder="City *"
-                    value={formData.city}
-                    onChangeText={(value) =>
-                      handleAddressInputChange("city", value)
-                    }
-                    placeholderTextColor="#999"
-                    editable={!addressLoading}
-                    allowFontScaling={false}
-                  />
-                  <TextInput
-                    style={[styles.addressTextInput, styles.addressHalfInput]}
-                    placeholder="District *"
-                    value={formData.district}
-                    onChangeText={(value) =>
-                      handleAddressInputChange("district", value)
-                    }
-                    placeholderTextColor="#999"
-                    editable={!addressLoading}
-                    allowFontScaling={false}
-                  />
-                </View>
-
-                <TextInput
-                  style={styles.addressTextInput}
-                  placeholder="State *"
-                  value={formData.state}
-                  onChangeText={(value) =>
-                    handleAddressInputChange("state", value)
-                  }
-                  placeholderTextColor="#999"
-                  editable={!addressLoading}
-                  allowFontScaling={false}
-                />
-
-                <View style={styles.addressSwitchContainer}>
-                  <Switch
-                    value={isDefaultAddress}
-                    onValueChange={setIsDefaultAddress}
-                    trackColor={{ false: "#f0f0f0", true: "#3b82f6" }}
-                    thumbColor="#fff"
-                    disabled={addressLoading}
-                  />
-                  <Text
-                    allowFontScaling={false}
-                    style={styles.addressSwitchLabel}
-                  >
-                    Make this my default address
-                  </Text>
-                </View>
               </View>
             </ScrollView>
 

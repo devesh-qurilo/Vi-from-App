@@ -16,7 +16,7 @@ import { moderateScale } from '../Responsive';
 const index = () => {
   return (
     <View style={styles.container}>
-      <Navbar/>
+      <Navbar autoOpenLocationModal />
     <ScrollView> 
       <Banner/>
       <Category/>

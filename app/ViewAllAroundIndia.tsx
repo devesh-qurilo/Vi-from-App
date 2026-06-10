@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 import axios from "axios";
 import { goBack } from "expo-router/build/global-state/routing";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -24,6 +24,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import LocalVendor from "../components/common/LocalVendor";
+import { AuthContext } from "./context/AuthContext";
 import { moderateScale, normalizeFont, scale } from "./Responsive";
 
 const API_BASE = "https://vi-farm-backend.onrender.com";
@@ -420,9 +421,11 @@ const ProductCard = ({
 // ----------------- ViewAllAroundIndia (parent) -----------------
 const ViewAllAroundIndia = () => {
   const navigation = useNavigation();
+  const { fetchBuyerLocation } = useContext(AuthContext) || {};
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [locationMissing, setLocationMissing] = useState(false);
   const [favorites, setFavorites] = useState(new Set());
   const [cartItems, setCartItems] = useState({});
   const [query, setQuery] = useState("");
@@ -455,6 +458,7 @@ const ViewAllAroundIndia = () => {
     try {
       setLoading(true);
       setError(null);
+      setLocationMissing(false);
 
       const token = await AsyncStorage.getItem("userToken");
       if (!token) {
@@ -476,12 +480,20 @@ const ViewAllAroundIndia = () => {
         setItems(arr);
       } else {
         setItems([]);
-        setError(resp.data?.message || "No products found");
+        const message = resp.data?.message || "No products found";
+        setLocationMissing(
+          message.toLowerCase().includes("buyer location not found"),
+        );
+        setError(message);
       }
     } catch (err) {
       console.error("Error fetching all-around-india:", err);
+      const message = err?.response?.data?.message || "";
       if (err?.response?.status === 401) {
         setError("Please login to view products");
+      } else if (message.toLowerCase().includes("buyer location not found")) {
+        setLocationMissing(true);
+        setError(message);
       } else if (err?.code === "ECONNABORTED") {
         setError("Request timeout. Please try again.");
       } else if (!err?.response) {
@@ -540,7 +552,6 @@ const ViewAllAroundIndia = () => {
     fetchAllAround();
     fetchWishlist();
     fetchCart();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // parsing helper
@@ -845,9 +856,15 @@ const ViewAllAroundIndia = () => {
 
   const handleRetry = () => {
     setError(null);
+    setLocationMissing(false);
     fetchAllAround();
     fetchWishlist();
     fetchCart();
+  };
+
+  const handleUpdateLocation = async () => {
+    await fetchBuyerLocation?.();
+    navigation.navigate("profile");
   };
 
   // Filter popup control
@@ -976,12 +993,31 @@ const ViewAllAroundIndia = () => {
         {/* Error */}
         {error && !loading && (
           <View style={styles.errorContainer}>
+            {locationMissing && (
+              <Ionicons
+                name="location-outline"
+                size={moderateScale(34)}
+                color="#D32F2F"
+                style={{ marginBottom: moderateScale(8) }}
+              />
+            )}
             <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
-              <Text allowFontScaling={false} style={styles.buttonText}>
-                Try Again
-              </Text>
-            </TouchableOpacity>
+            {locationMissing ? (
+              <TouchableOpacity
+                style={styles.retryButton}
+                onPress={handleUpdateLocation}
+              >
+                <Text allowFontScaling={false} style={styles.buttonText}>
+                  Update Profile Location
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+                <Text allowFontScaling={false} style={styles.buttonText}>
+                  Try Again
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 

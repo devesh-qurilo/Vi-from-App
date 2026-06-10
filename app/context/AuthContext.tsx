@@ -14,6 +14,7 @@ function AuthProviderComponent({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [address, setAddress] = useState(null); // keep single default address or null
+  const [buyerLocation, setBuyerLocation] = useState(null);
   const [vendorAddress, setVendorAddress] = useState(null);
 
   const API_BASE = "https://vi-farm-backend.onrender.com/api/auth";
@@ -296,6 +297,11 @@ function AuthProviderComponent({ children }) {
             } catch (err) {
               console.warn("fetchBuyerAddress failed after login:", err);
             }
+            try {
+              await fetchBuyerLocation();
+            } catch (err) {
+              console.warn("fetchBuyerLocation failed after login:", err);
+            }
           }
         }
       }
@@ -391,6 +397,7 @@ function AuthProviderComponent({ children }) {
 
       setUser(null);
       setAddress(null);
+      setBuyerLocation(null);
       setVendorAddress(null);
     } catch (err) {
       console.warn("logout error:", err);
@@ -437,6 +444,57 @@ function AuthProviderComponent({ children }) {
           err?.response?.data?.message || err.message || "Address fetch failed",
       };
     }
+  };
+
+  const fetchBuyerLocation = async () => {
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      if (!token) {
+        console.warn(
+          "fetchBuyerLocation: No token present. Skipping location fetch.",
+        );
+        return null;
+      }
+
+      const res = await axios.get(`${API_BUYER_BASE}/location`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res?.data?.success || res?.data?.status === "success") {
+        const nextBuyerLocation = normalizeApiLocation(res.data);
+        setBuyerLocation(nextBuyerLocation);
+        await AsyncStorage.setItem(
+          "buyerLocation",
+          JSON.stringify(nextBuyerLocation),
+        );
+        return nextBuyerLocation;
+      }
+
+      console.warn("fetchBuyerLocation: API responded non-success", res.data);
+      return res.data || null;
+    } catch (err) {
+      console.error(
+        "fetchBuyerLocation error:",
+        err?.response?.data || err.message || err,
+      );
+      return {
+        success: false,
+        message:
+          err?.response?.data?.message ||
+          err.message ||
+          "Buyer location fetch failed",
+      };
+    }
+  };
+
+  const updateBuyerLocationState = async (payload) => {
+    const nextBuyerLocation = normalizeApiLocation(payload);
+    setBuyerLocation(nextBuyerLocation);
+    await AsyncStorage.setItem(
+      "buyerLocation",
+      JSON.stringify(nextBuyerLocation),
+    );
+    return nextBuyerLocation;
   };
 
   const fetchVendorAddress = async () => {
@@ -504,9 +562,12 @@ function AuthProviderComponent({ children }) {
         newPassword,
         fetchBuyerProfile,
         fetchBuyerAddress,
+        fetchBuyerLocation,
+        updateBuyerLocationState,
         fetchVendorAddress,
         updateVendorAddressState,
         address,
+        buyerLocation,
         vendorAddress,
       }}
     >

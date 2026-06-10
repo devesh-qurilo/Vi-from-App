@@ -39,7 +39,13 @@ const API_BASE = "https://vi-farm-backend.onrender.com";
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const router = useRouter();
-  const { user, fetchBuyerProfile, logout } = useContext(AuthContext);
+  const {
+    user,
+    fetchBuyerProfile,
+    fetchBuyerLocation,
+    updateBuyerLocationState,
+    logout,
+  } = useContext(AuthContext);
 
   const [userInfo, setUserInfo] = useState({
     name: "",
@@ -109,17 +115,8 @@ const ProfileScreen = () => {
 
   const loadSavedLocation = async () => {
     try {
-      const token = await AsyncStorage.getItem("userToken");
-      if (!token) return;
-
-      const response = await axios.get(`${API_BASE}/api/buyer/location`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.data.success && response.data.data) {
-        const locationData = normalizeApiLocation(response.data);
+      const locationData = await fetchBuyerLocation?.();
+      if (locationData && locationData.success !== false) {
         setSavedLocation(locationData);
 
         setPinCode(locationData.pinCode || "");
@@ -405,7 +402,10 @@ const ProfileScreen = () => {
 
       if (response.data.success) {
         // Update saved location state
-        setSavedLocation(normalizeApiLocation(response.data));
+        const nextLocation =
+          (await updateBuyerLocationState?.(response.data)) ||
+          normalizeApiLocation(response.data);
+        setSavedLocation(nextLocation);
 
         handleCloseLocationModal();
         Alert.alert("Success", "Location updated successfully!");
