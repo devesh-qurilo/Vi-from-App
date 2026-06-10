@@ -12,6 +12,7 @@ import {
   Animated,
   Dimensions,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -823,35 +824,39 @@ const ProfileScreen = () => {
         animationType="none"
         onRequestClose={handleCloseLocationModal}
       >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={handleCloseLocationModal}
+        <KeyboardAvoidingView
+          style={styles.keyboardView}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <View style={styles.modalBackground}>
-            <Animated.View
-              style={[
-                styles.modalContainer,
-                {
-                  transform: [{ translateY: locationSlideAnim }],
-                },
-              ]}
-            >
-              <View style={styles.modalHeader}>
-                <TouchableOpacity
-                  onPress={handleCloseLocationModal}
-                  style={styles.backButton}
-                >
-                  <Image
-                    source={require("../assets/via-farm-img/icons/groupArrow.png")}
-                    style={{ width: scale(32), height: scale(32) }}
-                  />
-                </TouchableOpacity>
-                <Text allowFontScaling={false} style={styles.modalTitle}>
-                  {savedLocation ? "Edit Address" : "Add Address"}
-                </Text>
-                <View style={styles.placeholder} />
-              </View>
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={handleCloseLocationModal}
+          >
+            <View style={styles.modalBackground}>
+              <Animated.View
+                style={[
+                  styles.modalContainer,
+                  {
+                    transform: [{ translateY: locationSlideAnim }],
+                  },
+                ]}
+              >
+                <View style={styles.modalHeader}>
+                  <TouchableOpacity
+                    onPress={handleCloseLocationModal}
+                    style={styles.backButton}
+                  >
+                    <Image
+                      source={require("../assets/via-farm-img/icons/groupArrow.png")}
+                      style={{ width: scale(32), height: scale(32) }}
+                    />
+                  </TouchableOpacity>
+                  <Text allowFontScaling={false} style={styles.modalTitle}>
+                    {savedLocation ? "Edit Address" : "Add Address"}
+                  </Text>
+                  <View style={styles.placeholder} />
+                </View>
 
               <ScrollView
                 style={styles.modalContent}
@@ -969,15 +974,19 @@ const ProfileScreen = () => {
                   </TouchableOpacity>
                 </View>
               </ScrollView>
-            </Animated.View>
-          </View>
-        </TouchableOpacity>
+              </Animated.View>
+            </View>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  keyboardView: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: "#fff",

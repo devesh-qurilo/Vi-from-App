@@ -13,6 +13,7 @@ import {
   Alert,
   Dimensions,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -23,6 +24,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import DeliveryRadiusSelector from "@/components/common/DeliveryRadiusSelector";
 import LocationPickerFields from "@/components/common/LocationPickerFields";
 import { moderateScale, normalizeFont, scale } from "../Responsive";
 import {
@@ -698,7 +700,7 @@ const EditLocationModal = ({ visible, onClose, onSubmit, initialData }) => {
   const [country, setCountry] = useState("");
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
-  const [deliveryRadius, setDeliveryRadius] = useState("");
+  const [deliveryRadius, setDeliveryRadius] = useState("25");
   const [loading, setLoading] = useState(false);
   const [locLoading, setLocLoading] = useState(false);
 
@@ -712,7 +714,7 @@ const EditLocationModal = ({ visible, onClose, onSubmit, initialData }) => {
       setState(initialData.state || "");
       setCountry(initialData.country || "");
       setDeliveryRadius(
-        String(initialData.deliveryRadius || "").replace("km", ""),
+        String(initialData.deliveryRadius || 25).replace("km", ""),
       );
       setLatitude(initialData.latitude || null);
       setLongitude(initialData.longitude || null);
@@ -847,26 +849,30 @@ const EditLocationModal = ({ visible, onClose, onSubmit, initialData }) => {
 
   return (
     <Modal transparent animationType="slide" visible={visible}>
-      <TouchableOpacity
-        activeOpacity={1}
-        onPress={onClose}
-        style={modalStyles.modalOverlay}
+      <KeyboardAvoidingView
+        style={modalStyles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <View
-          style={modalStyles.modalContainer}
-          onStartShouldSetResponder={() => true}
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={onClose}
+          style={modalStyles.modalOverlay}
         >
-          {/* HEADER */}
-          <View style={modalStyles.header}>
-            <TouchableOpacity onPress={onClose}>
-              <Image
-                source={require("../../assets/via-farm-img/icons/groupArrow.png")}
-                style={{ width: scale(32), height: scale(32) }}
-              />
-            </TouchableOpacity>
-            <Text style={modalStyles.headerTitle}>Edit Location & Charges</Text>
-            <View style={{ width: 40 }} />
-          </View>
+          <View
+            style={modalStyles.modalContainer}
+            onStartShouldSetResponder={() => true}
+          >
+            {/* HEADER */}
+            <View style={modalStyles.header}>
+              <TouchableOpacity onPress={onClose}>
+                <Image
+                  source={require("../../assets/via-farm-img/icons/groupArrow.png")}
+                  style={{ width: scale(32), height: scale(32) }}
+                />
+              </TouchableOpacity>
+              <Text style={modalStyles.headerTitle}>Edit Location & Charges</Text>
+              <View style={{ width: 40 }} />
+            </View>
 
           <ScrollView
             showsVerticalScrollIndicator={false}
@@ -919,18 +925,11 @@ const EditLocationModal = ({ visible, onClose, onSubmit, initialData }) => {
               onChangeText={setLocality}
             />
 
-            <Text style={modalStyles.sectionTitle}>Delivery Region</Text>
-
-            <View style={modalStyles.deliveryRow}>
-              <Text>Upto</Text>
-              <TextInput
-                style={modalStyles.deliveryInput}
-                keyboardType="numeric"
-                value={deliveryRadius}
-                onChangeText={setDeliveryRadius}
-              />
-              <Text>km</Text>
-            </View>
+            <DeliveryRadiusSelector
+              value={deliveryRadius}
+              onChange={setDeliveryRadius}
+              disabled={loading || locLoading}
+            />
           </ScrollView>
 
           <TouchableOpacity
@@ -943,8 +942,9 @@ const EditLocationModal = ({ visible, onClose, onSubmit, initialData }) => {
               {loading ? "Updating..." : "Update Details"}
             </Text>
           </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -1564,6 +1564,9 @@ const styles = StyleSheet.create({
 
 // ---------- Responsive modalStyles ----------
 const modalStyles = StyleSheet.create({
+  keyboardView: {
+    flex: 1,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",

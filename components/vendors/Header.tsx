@@ -5,6 +5,7 @@ import {
   normalizeReverseGeocodeAddress,
 } from "@/app/utils/locationAddress";
 import LocationPickerFields from "@/components/common/LocationPickerFields";
+import DeliveryRadiusSelector from "@/components/common/DeliveryRadiusSelector";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "@/app/context/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -16,7 +17,9 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -61,7 +64,7 @@ const EditLocationModal = ({ visible, onClose, initialData, onSubmit }) => {
   const [country, setCountry] = useState("");
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
-  const [deliveryRadius, setDeliveryRadius] = useState("");
+  const [deliveryRadius, setDeliveryRadius] = useState("25");
   const [loading, setLoading] = useState(false);
   const [fetchingLocation, setFetchingLocation] = useState(false);
 
@@ -75,7 +78,7 @@ const EditLocationModal = ({ visible, onClose, initialData, onSubmit }) => {
       setState(initialData.state || "");
       setCountry(initialData.country || "");
       setDeliveryRadius(
-        String(initialData.deliveryRadius || "").replace("km", ""),
+        String(initialData.deliveryRadius || 25).replace("km", ""),
       );
       setLatitude(initialData.latitude || null);
       setLongitude(initialData.longitude || null);
@@ -242,28 +245,32 @@ const EditLocationModal = ({ visible, onClose, initialData, onSubmit }) => {
       visible={visible}
       onRequestClose={onClose}
     >
-      <TouchableOpacity
-        style={modalStyles.modalOverlay}
-        activeOpacity={1}
-        onPress={onClose}
+      <KeyboardAvoidingView
+        style={modalStyles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <View
-          style={modalStyles.modalContainer}
-          onStartShouldSetResponder={() => true}
+        <TouchableOpacity
+          style={modalStyles.modalOverlay}
+          activeOpacity={1}
+          onPress={onClose}
         >
-          {/* Header */}
-          <View style={modalStyles.header}>
-            <TouchableOpacity onPress={onClose} style={modalStyles.headerIcon}>
-              <Image
-                source={require("../../assets/via-farm-img/icons/groupArrow.png")}
-                style={{ width: scale(32), height: scale(32) }}
-              />
-            </TouchableOpacity>
-            <Text style={modalStyles.headerTitle} allowFontScaling={false}>
-              Location
-            </Text>
-            <View style={{ width: scale(40) }} />
-          </View>
+          <View
+            style={modalStyles.modalContainer}
+            onStartShouldSetResponder={() => true}
+          >
+            {/* Header */}
+            <View style={modalStyles.header}>
+              <TouchableOpacity onPress={onClose} style={modalStyles.headerIcon}>
+                <Image
+                  source={require("../../assets/via-farm-img/icons/groupArrow.png")}
+                  style={{ width: scale(32), height: scale(32) }}
+                />
+              </TouchableOpacity>
+              <Text style={modalStyles.headerTitle} allowFontScaling={false}>
+                Location
+              </Text>
+              <View style={{ width: scale(40) }} />
+            </View>
 
           <ScrollView
             showsVerticalScrollIndicator={false}
@@ -342,26 +349,11 @@ const EditLocationModal = ({ visible, onClose, initialData, onSubmit }) => {
               allowFontScaling={false}
             />
 
-            <Text style={modalStyles.sectionTitle} allowFontScaling={false}>
-              Delivery Region
-            </Text>
-            <View style={modalStyles.deliveryRow}>
-              <Text style={modalStyles.uptoText} allowFontScaling={false}>
-                Upto
-              </Text>
-              <TextInput
-                style={modalStyles.deliveryInput}
-                placeholder="0"
-                placeholderTextColor="#999"
-                keyboardType="numeric"
-                value={deliveryRadius}
-                onChangeText={setDeliveryRadius}
-                allowFontScaling={false}
-              />
-              <Text style={modalStyles.kmsText} allowFontScaling={false}>
-                km
-              </Text>
-            </View>
+            <DeliveryRadiusSelector
+              value={deliveryRadius}
+              onChange={setDeliveryRadius}
+              disabled={loading || fetchingLocation}
+            />
           </ScrollView>
 
           <TouchableOpacity
@@ -383,8 +375,9 @@ const EditLocationModal = ({ visible, onClose, initialData, onSubmit }) => {
               {loading ? "Updating..." : "Update Details"}
             </Text>
           </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -534,6 +527,9 @@ const styles = StyleSheet.create({
 
 // ============ Modal Styles ============
 const modalStyles = StyleSheet.create({
+  keyboardView: {
+    flex: 1,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
