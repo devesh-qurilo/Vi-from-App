@@ -3,6 +3,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useContext } from "react";
 import {
   ActivityIndicator,
+  Alert,
   BackHandler,
   StyleSheet,
   Text,
@@ -49,6 +50,15 @@ export default function VendorRejectedScreen() {
     return <Redirect href={getAuthenticatedRoute(auth.user) as any} />;
   }
 
+  const handleLogout = async () => {
+    try {
+      await auth.logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+      Alert.alert("Error", "Failed to logout. Please try again.");
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.card}>
@@ -57,7 +67,7 @@ export default function VendorRejectedScreen() {
           Your vendor account request was rejected by the admin. Please contact
           support or register again with the correct details.
         </Text>
-        <TouchableOpacity style={styles.button} onPress={auth.logout}>
+        <TouchableOpacity style={styles.button} onPress={handleLogout}>
           <Text style={styles.buttonText}>Back To Login</Text>
         </TouchableOpacity>
       </View>

@@ -471,7 +471,6 @@ const ProfileScreen = () => {
         style: "destructive",
         onPress: async () => {
           try {
-            await AsyncStorage.removeItem("userToken");
             await logout();
             router.replace("/login");
           } catch (error) {

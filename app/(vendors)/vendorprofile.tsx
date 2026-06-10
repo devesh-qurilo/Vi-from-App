@@ -1,5 +1,6 @@
 // VendorProfile.js
 import { Ionicons } from "@expo/vector-icons";
+import { AuthContext } from "@/app/context/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import * as FileSystem from "expo-file-system";
@@ -7,7 +8,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { router, useNavigation } from "expo-router";
 import { goBack } from "expo-router/build/global-state/routing";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -953,6 +954,7 @@ const EditLocationModal = ({ visible, onClose, onSubmit, initialData }) => {
 
 // ---------------- VendorProfile ----------------
 const VendorProfile = () => {
+  const { logout } = useContext(AuthContext) || {};
   const [userInfo, setUserInfo] = useState(null);
   const [fullUser, setFullUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1249,9 +1251,13 @@ const VendorProfile = () => {
           <TouchableOpacity
             style={styles.logoutButton}
             onPress={async () => {
-              await AsyncStorage.removeItem("userToken");
-              await AsyncStorage.removeItem("userData");
-              router.replace("/login");
+              try {
+                await logout?.();
+                router.replace("/login");
+              } catch (error) {
+                console.error("Logout error:", error);
+                Alert.alert("Error", "Failed to logout. Please try again.");
+              }
             }}
           >
             <Ionicons
