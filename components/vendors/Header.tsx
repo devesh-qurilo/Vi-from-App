@@ -4,6 +4,7 @@ import {
   createLocationPayload,
   normalizeReverseGeocodeAddress,
 } from "@/app/utils/locationAddress";
+import LocationPickerFields from "@/components/common/LocationPickerFields";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "@/app/context/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -308,15 +309,19 @@ const EditLocationModal = ({ visible, onClose, initialData, onSubmit }) => {
               )}
             </TouchableOpacity>
 
-            <TextInput
-              style={modalStyles.textInput}
-              placeholder="Pin Code *"
-              placeholderTextColor="#999"
-              keyboardType="numeric"
-              maxLength={6}
-              value={pinCode}
-              onChangeText={setPinCode}
-              allowFontScaling={false}
+            <LocationPickerFields
+              country={country}
+              state={state}
+              district={district}
+              city={city}
+              pinCode={pinCode}
+              onCountryChange={setCountry}
+              onStateChange={setState}
+              onDistrictChange={setDistrict}
+              onCityChange={setCity}
+              onPinCodeChange={setPinCode}
+              disabled={loading || fetchingLocation}
+              compact
             />
 
             <TextInput
@@ -336,44 +341,6 @@ const EditLocationModal = ({ visible, onClose, initialData, onSubmit }) => {
               onChangeText={setLocality}
               allowFontScaling={false}
             />
-
-            <View style={modalStyles.modalRow}>
-              <TextInput
-                style={[modalStyles.textInput, modalStyles.halfInput]}
-                placeholder="City *"
-                placeholderTextColor="#999"
-                value={city}
-                onChangeText={setCity}
-                allowFontScaling={false}
-              />
-              <TextInput
-                style={[modalStyles.textInput, modalStyles.halfInput]}
-                placeholder="District *"
-                placeholderTextColor="#999"
-                value={district}
-                onChangeText={setDistrict}
-                allowFontScaling={false}
-              />
-            </View>
-
-            <View style={modalStyles.modalRow}>
-              <TextInput
-                style={[modalStyles.textInput, modalStyles.halfInput]}
-                placeholder="State *"
-                placeholderTextColor="#999"
-                value={state}
-                onChangeText={setState}
-                allowFontScaling={false}
-              />
-              <TextInput
-                style={[modalStyles.textInput, modalStyles.halfInput]}
-                placeholder="Country *"
-                placeholderTextColor="#999"
-                value={country}
-                onChangeText={setCountry}
-                allowFontScaling={false}
-              />
-            </View>
 
             <Text style={modalStyles.sectionTitle} allowFontScaling={false}>
               Delivery Region

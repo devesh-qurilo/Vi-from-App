@@ -23,6 +23,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import LocationPickerFields from "@/components/common/LocationPickerFields";
 import { AuthContext } from "./context/AuthContext";
 import { moderateScale, normalizeFont, scale } from "./Responsive";
 import {
@@ -895,20 +896,19 @@ const ProfileScreen = () => {
                   <View style={styles.savedLocationNote}></View>
                 )}
 
-                <View style={styles.fieldContainer}>
-                  {/* <Text style={styles.fieldLabel}>Pin Code *</Text> */}
-                  <TextInput
-                    style={styles.textInput}
-                    value={pinCode}
-                    onChangeText={setPinCode}
-                    placeholder="Pin Code *"
-                    placeholderTextColor="#999"
-                    keyboardType="numeric"
-                    maxLength={6}
-                    editable={!updatingLocation}
-                    allowFontScaling={false}
-                  />
-                </View>
+                <LocationPickerFields
+                  country={country}
+                  state={state}
+                  district={district}
+                  city={city}
+                  pinCode={pinCode}
+                  onCountryChange={setCountry}
+                  onStateChange={setState}
+                  onDistrictChange={setDistrict}
+                  onCityChange={setCity}
+                  onPinCodeChange={setPinCode}
+                  disabled={updatingLocation}
+                />
 
                 <View style={styles.fieldContainer}>
                   {/* <Text style={styles.fieldLabel}>House number/Block/Street *</Text> */}
@@ -931,58 +931,6 @@ const ProfileScreen = () => {
                     value={locality}
                     onChangeText={setLocality}
                     placeholder="Locality/Town *"
-                    placeholderTextColor="#999"
-                    editable={!updatingLocation}
-                  />
-                </View>
-
-                <View style={styles.fieldRowContainer}>
-                  <View style={styles.fieldHalf}>
-                    {/* <Text style={styles.fieldLabel}>City *</Text> */}
-                    <TextInput
-                      allowFontScaling={false}
-                      style={styles.textInput}
-                      value={city}
-                      onChangeText={setCity}
-                      placeholder="City *"
-                      placeholderTextColor="#999"
-                      editable={!updatingLocation}
-                    />
-                  </View>
-                  <View style={styles.fieldHalf}>
-                    {/* <Text style={styles.fieldLabel}>District *</Text> */}
-                    <TextInput
-                      allowFontScaling={false}
-                      style={styles.textInput}
-                      value={district}
-                      onChangeText={setDistrict}
-                      placeholder="District *"
-                      placeholderTextColor="#999"
-                      editable={!updatingLocation}
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.fieldContainer}>
-                  {/* <Text style={styles.fieldLabel}>State *</Text> */}
-                  <TextInput
-                    allowFontScaling={false}
-                    style={styles.textInput}
-                    value={state}
-                    onChangeText={setState}
-                    placeholder="State *"
-                    placeholderTextColor="#999"
-                    editable={!updatingLocation}
-                  />
-                </View>
-
-                <View style={styles.fieldContainer}>
-                  <TextInput
-                    allowFontScaling={false}
-                    style={styles.textInput}
-                    value={country}
-                    onChangeText={setCountry}
-                    placeholder="Country *"
                     placeholderTextColor="#999"
                     editable={!updatingLocation}
                   />

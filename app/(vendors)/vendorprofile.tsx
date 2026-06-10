@@ -23,6 +23,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import LocationPickerFields from "@/components/common/LocationPickerFields";
 import { moderateScale, normalizeFont, scale } from "../Responsive";
 import {
   createLocationPayload,
@@ -889,13 +890,19 @@ const EditLocationModal = ({ visible, onClose, onSubmit, initialData }) => {
               </Text>
             </TouchableOpacity>
 
-            <TextInput
-              style={modalStyles.textInput}
-              placeholder="Pin Code *"
-              keyboardType="numeric"
-              maxLength={6}
-              value={pinCode}
-              onChangeText={setPinCode}
+            <LocationPickerFields
+              country={country}
+              state={state}
+              district={district}
+              city={city}
+              pinCode={pinCode}
+              onCountryChange={setCountry}
+              onStateChange={setState}
+              onDistrictChange={setDistrict}
+              onCityChange={setCity}
+              onPinCodeChange={setPinCode}
+              disabled={loading || locLoading}
+              compact
             />
 
             <TextInput
@@ -911,36 +918,6 @@ const EditLocationModal = ({ visible, onClose, onSubmit, initialData }) => {
               value={locality}
               onChangeText={setLocality}
             />
-
-            <View style={modalStyles.row}>
-              <TextInput
-                style={[modalStyles.textInput, modalStyles.halfInput]}
-                placeholder="City *"
-                value={city}
-                onChangeText={setCity}
-              />
-              <TextInput
-                style={[modalStyles.textInput, modalStyles.halfInput]}
-                placeholder="District *"
-                value={district}
-                onChangeText={setDistrict}
-              />
-            </View>
-
-            <View style={modalStyles.row}>
-              <TextInput
-                style={[modalStyles.textInput, modalStyles.halfInput]}
-                placeholder="State *"
-                value={state}
-                onChangeText={setState}
-              />
-              <TextInput
-                style={[modalStyles.textInput, modalStyles.halfInput]}
-                placeholder="Country *"
-                value={country}
-                onChangeText={setCountry}
-              />
-            </View>
 
             <Text style={modalStyles.sectionTitle}>Delivery Region</Text>
 
