@@ -558,17 +558,41 @@ export default function HeaderDesign({ autoOpenLocationModal = false }) {
         longitude: parseFloat(String(formData.longitude || 0)),
       });
 
-      const res = await axios.put(
-        `${API_BASE_URL}/api/buyer/location`,
-        payload,
-        {
+      const requestConfig = {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
           timeout: 15000,
-        },
-      );
+        };
+
+      const updateBuyerLocation = () =>
+        axios.put(`${API_BASE_URL}/api/buyer/location`, payload, requestConfig);
+
+      let res;
+      try {
+        res = await updateBuyerLocation();
+      } catch (error) {
+        const isMissingAddress =
+          axios.isAxiosError(error) && error.response?.status === 404;
+
+        if (!isMissingAddress) {
+          throw error;
+        }
+
+        await axios.post(
+          `${API_BASE_URL}/api/buyer/addresses`,
+          {
+            ...payload,
+            name: "Home",
+            mobileNumber: user?.mobileNumber || user?.phone || "",
+            isDefault: true,
+          },
+          requestConfig,
+        );
+
+        res = await updateBuyerLocation();
+      }
 
       if (res.data && res.data.success) {
         if (typeof updateBuyerLocationState === "function") {

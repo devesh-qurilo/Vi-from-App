@@ -2,6 +2,7 @@ import { moderateScale, normalizeFont, scale } from "@/app/Responsive";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 import axios from "axios";
+import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -115,7 +116,7 @@ const Plants = () => {
   };
 
   const handleLogin = () => {
-    navigation.navigate("login");
+    router.replace("/(auth)/login");
   };
 
   // OPEN DETAILS: receives full product object (formatted item)
